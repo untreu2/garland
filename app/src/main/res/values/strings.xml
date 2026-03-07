@@ -8,6 +8,10 @@
     <string name="identity_error">Import failed: %s</string>
     <string name="active_document_none">No prepared document loaded yet.</string>
     <string name="active_document_loaded">Active document: %1$s (%2$s)</string>
+    <string name="active_document_details_none">No Garland plan details yet.</string>
+    <string name="active_document_details">Doc %1$s
+%2$s • %3$d bytes • %4$d block(s) • %5$d server(s)
+sha256 %6$s</string>
     <string name="local_documents_label">Local Garland documents</string>
     <string name="refresh_documents_button">Refresh</string>
     <string name="sync_documents_button">Sync pending</string>

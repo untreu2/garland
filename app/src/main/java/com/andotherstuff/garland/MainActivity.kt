@@ -251,6 +251,24 @@ class MainActivity : AppCompatActivity() {
         } else {
             getString(R.string.active_document_loaded, record.displayName, record.uploadStatus)
         }
+        binding.activeDocumentDetailText.text = if (record == null) {
+            getString(R.string.active_document_details_none)
+        } else {
+            val summary = GarlandPlanInspector.summarize(store.readUploadPlan(record.documentId))
+            if (summary == null) {
+                getString(R.string.active_document_details_none)
+            } else {
+                getString(
+                    R.string.active_document_details,
+                    summary.documentId.take(12),
+                    summary.mimeType,
+                    summary.sizeBytes,
+                    summary.blockCount,
+                    summary.serverCount,
+                    summary.sha256Hex.take(12),
+                )
+            }
+        }
     }
 
     private fun selectDocument(record: LocalDocumentRecord?, announce: Boolean) {

@@ -49,6 +49,16 @@
         android:textSize="14sp" />
 
     <TextView
+        android:id="@+id/activeDocumentDetailText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center"
+        android:text="@string/active_document_details_none"
+        android:textColor="@color/garland_muted"
+        android:textSize="13sp" />
+
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
