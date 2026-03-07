@@ -1,0 +1,57 @@
+package com.andotherstuff.garland
+
+import android.content.Context
+
+class GarlandSessionStore(context: Context) {
+    private val prefs = context.getSharedPreferences("garland-session", Context.MODE_PRIVATE)
+
+    fun savePrivateKeyHex(privateKeyHex: String) {
+        prefs.edit().putString(KEY_PRIVATE_KEY_HEX, privateKeyHex).apply()
+    }
+
+    fun loadPrivateKeyHex(): String? = prefs.getString(KEY_PRIVATE_KEY_HEX, null)
+
+    fun saveBlossomServers(servers: List<String>) {
+        prefs.edit()
+            .putString(KEY_SERVER_ONE, servers.getOrNull(0))
+            .putString(KEY_SERVER_TWO, servers.getOrNull(1))
+            .putString(KEY_SERVER_THREE, servers.getOrNull(2))
+            .apply()
+    }
+
+    fun saveRelays(relays: List<String>) {
+        prefs.edit()
+            .putString(KEY_RELAY_ONE, relays.getOrNull(0))
+            .putString(KEY_RELAY_TWO, relays.getOrNull(1))
+            .putString(KEY_RELAY_THREE, relays.getOrNull(2))
+            .apply()
+    }
+
+    fun loadBlossomServers(): List<String> {
+        val fallback = GarlandConfig.defaults.blossomServers
+        return listOf(
+            prefs.getString(KEY_SERVER_ONE, fallback[0]).orEmpty(),
+            prefs.getString(KEY_SERVER_TWO, fallback[1]).orEmpty(),
+            prefs.getString(KEY_SERVER_THREE, fallback[2]).orEmpty(),
+        )
+    }
+
+    fun loadRelays(): List<String> {
+        val fallback = GarlandConfig.defaults.relays
+        return listOf(
+            prefs.getString(KEY_RELAY_ONE, fallback[0]).orEmpty(),
+            prefs.getString(KEY_RELAY_TWO, fallback[1]).orEmpty(),
+            prefs.getString(KEY_RELAY_THREE, fallback[2]).orEmpty(),
+        )
+    }
+
+    companion object {
+        private const val KEY_PRIVATE_KEY_HEX = "private_key_hex"
+        private const val KEY_SERVER_ONE = "server_one"
+        private const val KEY_SERVER_TWO = "server_two"
+        private const val KEY_SERVER_THREE = "server_three"
+        private const val KEY_RELAY_ONE = "relay_one"
+        private const val KEY_RELAY_TWO = "relay_two"
+        private const val KEY_RELAY_THREE = "relay_three"
+    }
+}

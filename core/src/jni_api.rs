@@ -1,0 +1,128 @@
+use jni::JNIEnv;
+use jni::objects::{JClass, JString};
+use jni::sys::jstring;
+use serde::{Deserialize, Serialize};
+
+use crate::identity::derive_nostr_identity;
+use crate::mvp_write::{PrepareWriteRequest, prepare_single_block_write};
+
+#[derive(Serialize)]
+struct IdentityResponse {
+    ok: bool,
+    nsec: Option<String>,
+    private_key_hex: Option<String>,
+    error: Option<String>,
+}
+
+#[derive(Serialize)]
+struct WritePlanResponse {
+    ok: bool,
+    plan: Option<serde_json::Value>,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct PrepareWriteJson {
+    private_key_hex: String,
+    display_name: String,
+    mime_type: String,
+    created_at: u64,
+    content_b64: String,
+    servers: Vec<String>,
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_andotherstuff_garland_NativeBridge_deriveIdentity(
+    mut env: JNIEnv,
+    _class: JClass,
+    mnemonic: JString,
+    passphrase: JString,
+) -> jstring {
+    let mnemonic: String = env
+        .get_string(&mnemonic)
+        .map(|value| value.into())
+        .unwrap_or_default();
+    let passphrase: String = env
+        .get_string(&passphrase)
+        .map(|value| value.into())
+        .unwrap_or_default();
+
+    let response = match derive_nostr_identity(&mnemonic, &passphrase) {
+        Ok(identity) => IdentityResponse {
+            ok: true,
+            nsec: Some(identity.nsec),
+            private_key_hex: Some(identity.private_key_hex),
+            error: None,
+        },
+        Err(error) => IdentityResponse {
+            ok: false,
+            nsec: None,
+            private_key_hex: None,
+            error: Some(error.to_string()),
+        },
+    };
+
+    let payload = serde_json::to_string(&response).unwrap_or_else(|err| {
+        format!(
+            "{{\"ok\":false,\"nsec\":null,\"private_key_hex\":null,\"error\":\"{}\"}}",
+            err
+        )
+    });
+
+    env.new_string(payload)
+        .expect("JNI should allocate response string")
+        .into_raw()
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_andotherstuff_garland_NativeBridge_prepareSingleBlockWrite(
+    mut env: JNIEnv,
+    _class: JClass,
+    request_json: JString,
+) -> jstring {
+    let request_json: String = env
+        .get_string(&request_json)
+        .map(|value| value.into())
+        .unwrap_or_default();
+
+    let response = match serde_json::from_str::<PrepareWriteJson>(&request_json) {
+        Ok(request) => {
+            let request = PrepareWriteRequest {
+                private_key_hex: request.private_key_hex,
+                display_name: request.display_name,
+                mime_type: request.mime_type,
+                created_at: request.created_at,
+                content_b64: request.content_b64,
+                servers: request.servers,
+            };
+            match prepare_single_block_write(&request) {
+                Ok(plan) => WritePlanResponse {
+                    ok: true,
+                    plan: serde_json::to_value(plan).ok(),
+                    error: None,
+                },
+                Err(error) => WritePlanResponse {
+                    ok: false,
+                    plan: None,
+                    error: Some(error.to_string()),
+                },
+            }
+        }
+        Err(error) => WritePlanResponse {
+            ok: false,
+            plan: None,
+            error: Some(format!("invalid request json: {}", error)),
+        },
+    };
+
+    let payload = serde_json::to_string(&response).unwrap_or_else(|err| {
+        format!(
+            "{{\"ok\":false,\"plan\":null,\"error\":\"{}\"}}",
+            err
+        )
+    });
+
+    env.new_string(payload)
+        .expect("JNI should allocate response string")
+        .into_raw()
+}

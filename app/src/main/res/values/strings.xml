@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">Garland</string>
+    <string name="app_boot_status">Identity, upload prep, share upload, and relay publish are wired.</string>
+    <string name="mnemonic_label">12-word Nostr seed</string>
+    <string name="passphrase_label">Optional BIP39 passphrase</string>
+    <string name="derive_button">Load identity</string>
+    <string name="identity_loaded">Identity loaded\n%s</string>
+    <string name="identity_error">Import failed: %s</string>
+    <string name="relay_defaults_label">Default relays</string>
+    <string name="blossom_defaults_label">Default Blossom servers</string>
+    <string name="manual_upload_label">Manual Garland upload prep</string>
+    <string name="prepare_upload_button">Prepare Garland upload</string>
+    <string name="execute_upload_button">Upload prepared shares</string>
+    <string name="prepare_requires_identity">Load a 12-word identity first.</string>
+    <string name="upload_prepared">Upload prepared\nDocument: %1$s\nShares: %2$d</string>
+    <string name="upload_prepare_error">Upload prep failed: %s</string>
+    <string name="upload_requires_prepared_document">Prepare a document before uploading shares.</string>
+    <string name="upload_running">Uploading shares for %s</string>
+    <string name="upload_result">Uploaded %1$d/%2$d shares\n%3$s</string>
+    <string name="upload_execution_error">Upload failed: %s</string>
+</resources>
