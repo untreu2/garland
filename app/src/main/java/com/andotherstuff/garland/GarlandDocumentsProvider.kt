@@ -13,6 +13,7 @@ class GarlandDocumentsProvider : DocumentsProvider() {
     private val store by lazy { LocalDocumentStore(context!!.applicationContext) }
     private val session by lazy { GarlandSessionStore(context!!.applicationContext) }
     private val uploadExecutor by lazy { GarlandUploadExecutor(context!!.applicationContext) }
+    private val downloadExecutor by lazy { GarlandDownloadExecutor(context!!.applicationContext) }
 
     override fun onCreate(): Boolean = true
 
@@ -70,6 +71,8 @@ class GarlandDocumentsProvider : DocumentsProvider() {
                 buildUploadPlanAndUpload(documentId)
             }
         }
+
+        restoreDocumentIfNeeded(documentId)
 
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     }
@@ -184,6 +187,15 @@ class GarlandDocumentsProvider : DocumentsProvider() {
         if (status != "upload-plan-ready") return
 
         uploadExecutor.executeDocumentUpload(documentId, session.loadRelays())
+    }
+
+    private fun restoreDocumentIfNeeded(documentId: String) {
+        val file = store.contentFile(documentId)
+        if (file.exists() && file.length() > 0) return
+        if (store.readUploadPlan(documentId).isNullOrBlank()) return
+
+        val privateKeyHex = session.loadPrivateKeyHex() ?: return
+        runCatching { downloadExecutor.restoreDocument(documentId, privateKeyHex) }
     }
 
     private fun resolveRootProjection(projection: Array<out String>?): Array<String> {
