@@ -12,6 +12,7 @@ data class LocalDocumentRecord(
     val sizeBytes: Long,
     val updatedAt: Long,
     val uploadStatus: String,
+    val lastSyncMessage: String? = null,
 )
 
 class LocalDocumentStore(private val context: Context) {
@@ -44,7 +45,7 @@ class LocalDocumentStore(private val context: Context) {
 
     fun listDocumentIdsWithUploadPlans(): List<String> = impl.listDocumentIdsWithUploadPlans()
 
-    fun updateUploadStatus(documentId: String, status: String) = impl.updateUploadStatus(documentId, status)
+    fun updateUploadStatus(documentId: String, status: String, message: String? = null) = impl.updateUploadStatus(documentId, status, message)
 
     fun deleteDocument(documentId: String) = impl.deleteDocument(documentId)
 }
@@ -126,6 +127,7 @@ class LocalDocumentStoreImpl(private val baseDir: File) {
                 sizeBytes = if (file.exists()) file.length() else 0,
                 updatedAt = System.currentTimeMillis(),
                 uploadStatus = "local-ready",
+                lastSyncMessage = null,
             )
         )
     }
@@ -146,9 +148,15 @@ class LocalDocumentStoreImpl(private val baseDir: File) {
             ?: emptyList()
     }
 
-    fun updateUploadStatus(documentId: String, status: String) {
+    fun updateUploadStatus(documentId: String, status: String, message: String? = null) {
         val current = readRecord(documentId) ?: return
-        writeRecord(current.copy(uploadStatus = status, updatedAt = System.currentTimeMillis()))
+        writeRecord(
+            current.copy(
+                uploadStatus = status,
+                updatedAt = System.currentTimeMillis(),
+                lastSyncMessage = message,
+            )
+        )
     }
 
     fun deleteDocument(documentId: String) {

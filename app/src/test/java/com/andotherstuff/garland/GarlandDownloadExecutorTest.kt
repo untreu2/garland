@@ -55,6 +55,7 @@ class GarlandDownloadExecutorTest {
         assertTrue(result.success)
         assertEquals("hello", store.contentFile(document.documentId).readText())
         assertEquals("download-restored", store.readRecord(document.documentId)?.uploadStatus)
+        assertTrue(store.readRecord(document.documentId)?.lastSyncMessage?.contains("Restored") == true)
 
         client.dispatcher.executorService.shutdown()
         client.connectionPool.evictAll()

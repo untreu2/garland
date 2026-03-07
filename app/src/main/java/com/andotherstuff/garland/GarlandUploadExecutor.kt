@@ -34,8 +34,9 @@ open class GarlandUploadExecutor(
             ?: return UploadExecutionResult(false, 0, 0, false, "No upload plan found")
         val response = gson.fromJson(raw, WritePlanEnvelope::class.java)
         if (!response.ok || response.plan == null) {
-            store.updateUploadStatus(documentId, "upload-plan-failed")
-            return UploadExecutionResult(false, 0, 0, false, response.error ?: "Invalid upload plan")
+            val message = response.error ?: "Invalid upload plan"
+            store.updateUploadStatus(documentId, "upload-plan-failed", message)
+            return UploadExecutionResult(false, 0, 0, false, message)
         }
 
         val uploads = response.plan.uploads
@@ -52,13 +53,14 @@ open class GarlandUploadExecutor(
 
             client.newCall(request).execute().use { responseBody ->
                 if (!responseBody.isSuccessful) {
-                    store.updateUploadStatus(documentId, "upload-http-${responseBody.code}")
+                    val message = "Upload failed on ${upload.serverUrl} with HTTP ${responseBody.code}"
+                    store.updateUploadStatus(documentId, "upload-http-${responseBody.code}", message)
                     return UploadExecutionResult(
                         success = false,
                         attemptedShares = uploads.size,
                         uploadedShares = uploadedShares,
                         relayPublished = false,
-                        message = "Upload failed on ${upload.serverUrl} with HTTP ${responseBody.code}",
+                        message = message,
                     )
                 }
             }
@@ -73,12 +75,12 @@ open class GarlandUploadExecutor(
                 relayPublished = false,
                 message = "Upload plan is missing commit event",
             ).also {
-                store.updateUploadStatus(documentId, "relay-publish-failed")
+                store.updateUploadStatus(documentId, "relay-publish-failed", "Upload plan is missing commit event")
             }
 
         val relayResult = relayPublisher.publish(relayUrls, commitEvent)
         if (relayResult.successfulRelays == 0) {
-            store.updateUploadStatus(documentId, "relay-publish-failed")
+            store.updateUploadStatus(documentId, "relay-publish-failed", relayResult.message)
             return UploadExecutionResult(
                 success = false,
                 attemptedShares = uploads.size,
@@ -93,7 +95,7 @@ open class GarlandUploadExecutor(
         } else {
             "relay-published-partial"
         }
-        store.updateUploadStatus(documentId, relayStatus)
+        store.updateUploadStatus(documentId, relayStatus, relayResult.message)
         return UploadExecutionResult(
             success = true,
             attemptedShares = uploads.size,

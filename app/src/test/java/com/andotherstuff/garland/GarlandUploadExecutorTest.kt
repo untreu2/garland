@@ -123,6 +123,7 @@ class GarlandUploadExecutorTest {
         assertTrue(result.success)
         assertTrue(result.message.contains("failed:"))
         assertEquals("relay-published-partial", store.readRecord(document.documentId)?.uploadStatus)
+        assertTrue(store.readRecord(document.documentId)?.lastSyncMessage?.contains("failed:") == true)
 
         client.dispatcher.executorService.shutdown()
         client.connectionPool.evictAll()

@@ -166,7 +166,7 @@ class GarlandDocumentsProvider : DocumentsProvider() {
     private fun buildUploadPlanAndUpload(documentId: String) {
         val privateKeyHex = session.loadPrivateKeyHex()
         if (privateKeyHex.isNullOrBlank()) {
-            store.updateUploadStatus(documentId, "waiting-for-identity")
+            store.updateUploadStatus(documentId, "waiting-for-identity", "Load identity to prepare Garland upload")
             return
         }
 
@@ -183,7 +183,8 @@ class GarlandDocumentsProvider : DocumentsProvider() {
         val responseJson = NativeBridge.prepareSingleBlockWrite(requestJson)
         store.saveUploadPlan(documentId, responseJson)
         val status = if (responseJson.contains("\"ok\":true")) "upload-plan-ready" else "upload-plan-failed"
-        store.updateUploadStatus(documentId, status)
+        val message = if (status == "upload-plan-ready") "Upload plan prepared from provider write" else "Upload plan preparation failed"
+        store.updateUploadStatus(documentId, status, message)
         if (status != "upload-plan-ready") return
 
         uploadExecutor.executeDocumentUpload(documentId, session.loadRelays())

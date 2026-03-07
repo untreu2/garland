@@ -255,7 +255,7 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.active_document_details_none)
         } else {
             val summary = GarlandPlanInspector.summarize(store.readUploadPlan(record.documentId))
-            if (summary == null) {
+            val detailText = if (summary == null) {
                 getString(R.string.active_document_details_none)
             } else {
                 getString(
@@ -268,6 +268,12 @@ class MainActivity : AppCompatActivity() {
                     summary.sha256Hex.take(12),
                 )
             }
+            val diagnosticText = record.lastSyncMessage?.takeIf { it.isNotBlank() }
+                ?.let { getString(R.string.active_document_diagnostic, it) }
+                .orEmpty()
+            listOf(detailText, diagnosticText)
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
         }
     }
 

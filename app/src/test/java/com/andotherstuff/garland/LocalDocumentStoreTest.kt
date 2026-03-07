@@ -38,4 +38,16 @@ class LocalDocumentStoreTest {
         assertEquals(second.documentId, store.latestDocument()?.documentId)
         assertEquals(first.documentId, store.readRecord(first.documentId)?.documentId)
     }
+
+    @Test
+    fun persistsLastSyncMessageWithStatusUpdates() {
+        val tempDir = Files.createTempDirectory("garland-store-status-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val document = store.createDocument("note.txt", "text/plain")
+
+        store.updateUploadStatus(document.documentId, "relay-publish-failed", "relay timeout")
+
+        assertEquals("relay-publish-failed", store.readRecord(document.documentId)?.uploadStatus)
+        assertEquals("relay timeout", store.readRecord(document.documentId)?.lastSyncMessage)
+    }
 }

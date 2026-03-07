@@ -31,12 +31,18 @@ class GarlandDownloadExecutor(
             ?: return DownloadExecutionResult(false, 0, 0, "No upload plan found")
         val response = gson.fromJson(raw, DownloadPlanEnvelope::class.java)
         val manifest = response.plan?.manifest
-            ?: return DownloadExecutionResult(false, 0, 0, "Upload plan is missing manifest")
+            ?: return DownloadExecutionResult(false, 0, 0, "Upload plan is missing manifest").also {
+                store.updateUploadStatus(documentId, "download-failed", it.message)
+            }
         val block = manifest.blocks.firstOrNull()
-            ?: return DownloadExecutionResult(false, 0, 0, "Manifest has no blocks")
+            ?: return DownloadExecutionResult(false, 0, 0, "Manifest has no blocks").also {
+                store.updateUploadStatus(documentId, "download-failed", it.message)
+            }
 
         val encryptedBody = fetchEncryptedBody(block)
-            ?: return DownloadExecutionResult(false, block.servers.size, 0, "Unable to fetch share from configured servers")
+            ?: return DownloadExecutionResult(false, block.servers.size, 0, "Unable to fetch share from configured servers").also {
+                store.updateUploadStatus(documentId, "download-failed", it.message)
+            }
 
         val requestJson = GarlandConfig.buildRecoverReadRequestJson(
             privateKeyHex = privateKeyHex,
@@ -46,15 +52,17 @@ class GarlandDownloadExecutor(
         )
         val recovery = gson.fromJson(recoverBlock(requestJson), DownloadRecoveryEnvelope::class.java)
         if (!recovery.ok) {
-            store.updateUploadStatus(documentId, "download-failed")
-            return DownloadExecutionResult(false, block.servers.size, 0, recovery.error ?: "Recovery failed")
+            val message = recovery.error ?: "Recovery failed"
+            store.updateUploadStatus(documentId, "download-failed", message)
+            return DownloadExecutionResult(false, block.servers.size, 0, message)
         }
 
         val content = Base64.getDecoder().decode(recovery.contentBase64 ?: "")
         store.contentFile(documentId).writeBytes(content)
         store.updateFromContent(documentId)
-        store.updateUploadStatus(documentId, "download-restored")
-        return DownloadExecutionResult(true, block.servers.size, content.size, "Restored ${content.size} bytes from Garland share")
+        val message = "Restored ${content.size} bytes from Garland share"
+        store.updateUploadStatus(documentId, "download-restored", message)
+        return DownloadExecutionResult(true, block.servers.size, content.size, message)
     }
 
     private fun fetchEncryptedBody(block: ManifestBlockEnvelope): ByteArray? {
