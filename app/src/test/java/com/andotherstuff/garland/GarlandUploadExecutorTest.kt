@@ -133,4 +133,68 @@ class GarlandUploadExecutorTest {
         client.connectionPool.evictAll()
         server.shutdown()
     }
+
+    @Test
+    fun uploadsAllSharesForMultiBlockPlan() {
+        val tempDir = Files.createTempDirectory("garland-upload-multi-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val server = MockWebServer()
+        repeat(6) {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+        }
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    webSocket.send("[\"OK\",\"event123\",true,\"\"]")
+                    webSocket.close(1000, null)
+                }
+            })
+        )
+        server.start()
+
+        val document = store.createDocument("big.txt", "text/plain")
+        val uploadUrl = server.url("").toString().removeSuffix("/")
+        val relayUrl = server.url("/").toString().replaceFirst("http", "ws")
+        store.saveUploadPlan(
+            document.documentId,
+            """
+            {
+              "ok": true,
+              "plan": {
+                "uploads": [
+                  {"server_url":"$uploadUrl","share_id_hex":"a1","body_b64":"aGVsbG8="},
+                  {"server_url":"$uploadUrl","share_id_hex":"a2","body_b64":"aGVsbG8="},
+                  {"server_url":"$uploadUrl","share_id_hex":"a3","body_b64":"aGVsbG8="},
+                  {"server_url":"$uploadUrl","share_id_hex":"b1","body_b64":"d29ybGQ="},
+                  {"server_url":"$uploadUrl","share_id_hex":"b2","body_b64":"d29ybGQ="},
+                  {"server_url":"$uploadUrl","share_id_hex":"b3","body_b64":"d29ybGQ="}
+                ],
+                "commit_event": {
+                  "id_hex":"event123",
+                  "pubkey_hex":"pubkey123",
+                  "created_at":1701907200,
+                  "kind":1097,
+                  "tags":[],
+                  "content":"manifest",
+                  "sig_hex":"sig123"
+                }
+              },
+              "error": null
+            }
+            """.trimIndent()
+        )
+
+        val client = OkHttpClient()
+        val executor = GarlandUploadExecutor(store, client)
+        val result = executor.executeDocumentUpload(document.documentId, listOf(relayUrl))
+
+        assertTrue(result.success)
+        assertEquals(6, result.uploadedShares)
+        assertEquals("relay-published", store.readRecord(document.documentId)?.uploadStatus)
+
+        client.dispatcher.cancelAll()
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
+        server.shutdown()
+    }
 }

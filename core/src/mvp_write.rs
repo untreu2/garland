@@ -7,6 +7,7 @@ use thiserror::Error;
 
 use crate::crypto::{decrypt_block, prepare_replication_upload, BlossomServer};
 use crate::nostr_event::{sign_custom_event, SignedEvent, UnsignedEvent};
+use crate::packaging::CONTENT_CAPACITY;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrepareWriteRequest {
@@ -73,8 +74,6 @@ pub enum WritePlanError {
     EventSigning(String),
     #[error("manifest serialization failed")]
     ManifestSerialization,
-    #[error("content length exceeds single-block MVP limit")]
-    ContentTooLarge,
 }
 
 #[derive(Debug, Error)]
@@ -94,10 +93,6 @@ pub fn prepare_single_block_write(
         .decode(&request.content_b64)
         .map_err(|_| WritePlanError::InvalidContentBase64)?;
 
-    if content.len() > 262_096 {
-        return Err(WritePlanError::ContentTooLarge);
-    }
-
     let private_key_bytes = decode_private_key(&request.private_key_hex)?;
     let document_id = hex::encode(Sha256::digest(
         format!(
@@ -115,14 +110,44 @@ pub fn prepare_single_block_write(
         .iter()
         .map(|url| BlossomServer::new(url))
         .collect();
-    let replication = prepare_replication_upload(file_key, 0, nonce, &content, &servers)
-        .map_err(|err| WritePlanError::Crypto(err.to_string()))?;
+    let block_chunks = split_into_blocks(&content);
+    let mut manifest_blocks = Vec::with_capacity(block_chunks.len());
+    let mut uploads = Vec::with_capacity(block_chunks.len() * request.servers.len());
 
-    let share_id_hex = replication
-        .shares
-        .first()
-        .map(|share| share.share_id_hex.clone())
-        .unwrap_or_default();
+    for (block_index, chunk) in block_chunks.iter().enumerate() {
+        let nonce = if block_index == 0 {
+            nonce
+        } else {
+            random_nonce()
+        };
+        let replication =
+            prepare_replication_upload(file_key, block_index as u32, nonce, chunk, &servers)
+                .map_err(|err| WritePlanError::Crypto(err.to_string()))?;
+        let share_id_hex = replication
+            .shares
+            .first()
+            .map(|share| share.share_id_hex.clone())
+            .unwrap_or_default();
+
+        manifest_blocks.push(ManifestBlock {
+            index: block_index as u32,
+            nonce_b64: STANDARD.encode(nonce),
+            share_id_hex,
+            servers: request.servers.clone(),
+        });
+
+        uploads.extend(
+            replication
+                .shares
+                .into_iter()
+                .map(|share| UploadInstruction {
+                    server_url: share.server_url,
+                    share_id_hex: share.share_id_hex,
+                    body_b64: STANDARD.encode(share.body),
+                }),
+        );
+    }
+
     let manifest = WriteManifest {
         version: 1,
         document_id: document_id.clone(),
@@ -131,12 +156,7 @@ pub fn prepare_single_block_write(
         size_bytes: content.len(),
         sha256_hex: hex::encode(Sha256::digest(&content)),
         created_at: request.created_at,
-        blocks: vec![ManifestBlock {
-            index: 0,
-            nonce_b64: STANDARD.encode(nonce),
-            share_id_hex: share_id_hex.clone(),
-            servers: request.servers.clone(),
-        }],
+        blocks: manifest_blocks,
     };
     let manifest_json =
         serde_json::to_string(&manifest).map_err(|_| WritePlanError::ManifestSerialization)?;
@@ -150,23 +170,20 @@ pub fn prepare_single_block_write(
         },
     )
     .map_err(|err| WritePlanError::EventSigning(err.to_string()))?;
-
-    let uploads = replication
-        .shares
-        .into_iter()
-        .map(|share| UploadInstruction {
-            server_url: share.server_url,
-            share_id_hex: share.share_id_hex,
-            body_b64: STANDARD.encode(share.body),
-        })
-        .collect();
-
     Ok(PreparedWritePlan {
         document_id,
         manifest,
         uploads,
         commit_event,
     })
+}
+
+fn split_into_blocks(content: &[u8]) -> Vec<&[u8]> {
+    if content.is_empty() {
+        return vec![content];
+    }
+
+    content.chunks(CONTENT_CAPACITY).collect()
 }
 
 pub fn recover_single_block_read(

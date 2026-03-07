@@ -111,4 +111,61 @@ class GarlandDownloadExecutorTest {
         client.connectionPool.evictAll()
         server.shutdown()
     }
+
+    @Test
+    fun restoresDocumentAcrossMultipleBlocks() {
+        val tempDir = Files.createTempDirectory("garland-download-multi-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setResponseCode(200).setBody("encrypted-share-one"))
+        server.enqueue(MockResponse().setResponseCode(200).setBody("encrypted-share-two"))
+        server.start()
+
+        val document = store.createDocument("note.txt", "text/plain")
+        val serverUrl = server.url("").toString().removeSuffix("/")
+        store.saveUploadPlan(
+            document.documentId,
+            """
+            {
+              "plan": {
+                "manifest": {
+                  "document_id": "doc123",
+                  "blocks": [
+                    {
+                      "index": 0,
+                      "share_id_hex": "share123",
+                      "servers": ["$serverUrl"]
+                    },
+                    {
+                      "index": 1,
+                      "share_id_hex": "share456",
+                      "servers": ["$serverUrl"]
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val client = OkHttpClient()
+        val executor = GarlandDownloadExecutor(
+            store = store,
+            client = client,
+            recoverBlock = { requestJson ->
+                val part = if (requestJson.contains("\"block_index\":0")) "hello " else "world"
+                "{\"ok\":true,\"content_b64\":\"${Base64.getEncoder().encodeToString(part.toByteArray())}\",\"error\":null}"
+            },
+        )
+
+        val result = executor.restoreDocument(document.documentId, "deadbeef")
+
+        assertTrue(result.success)
+        assertEquals(2, result.attemptedServers)
+        assertEquals("hello world", store.contentFile(document.documentId).readText())
+
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
+        server.shutdown()
+    }
 }

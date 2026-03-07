@@ -1,11 +1,12 @@
 # Garland Next Wave
 
-This file tracks the next integration wave after the current single-block Garland MVP.
+This file tracks the next integration wave after the current Garland MVP.
 
 ## Now Shipped
 
 - identity import from a 12-word seed
 - manual write prep, upload, relay publish, retry, and bulk pending sync
+- multi-block write planning and multi-block restore
 - local document browser in the app
 - remote restore from Garland shares
 - provider-backed recent, search, delete, write, and restore-on-read behavior
@@ -46,10 +47,10 @@ This file tracks the next integration wave after the current single-block Garlan
 
 ## Todo
 
-- [ ] Design multi-block manifest contract
-- [ ] Add Rust tests for multi-block write/recover
-- [ ] Expose multi-block JNI APIs
-- [ ] Update Android executors for block iteration
+- [x] Design multi-block manifest contract
+- [x] Add Rust tests for multi-block write/recover
+- [x] Expose multi-block JNI APIs
+- [x] Update Android executors for block iteration
 - [ ] Add WorkManager-based pending sync
 - [ ] Add instrumentation tests for the provider flow
 - [ ] Add per-document diagnostics UI

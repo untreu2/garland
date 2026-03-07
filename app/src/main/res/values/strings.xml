@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Garland</string>
-    <string name="app_boot_status">Identity, upload prep, share upload, and relay publish are wired.</string>
+    <string name="app_boot_status">Identity, multi-block upload prep, share upload, restore, and relay publish are wired.</string>
     <string name="mnemonic_label">12-word Nostr seed</string>
     <string name="passphrase_label">Optional BIP39 passphrase</string>
     <string name="derive_button">Load identity</string>

@@ -7,6 +7,7 @@ pub mod packaging;
 
 #[cfg(test)]
 mod tests {
+    use base64::Engine as _;
     use pretty_assertions::assert_eq;
 
     use crate::crypto::{
@@ -18,7 +19,9 @@ mod tests {
         RecoverReadRequest,
     };
     use crate::nostr_event::{sign_custom_event, UnsignedEvent};
-    use crate::packaging::{frame_content, unframe_content, BLOCK_SIZE, FRAME_SIZE};
+    use crate::packaging::{
+        frame_content, unframe_content, BLOCK_SIZE, CONTENT_CAPACITY, FRAME_SIZE,
+    };
 
     #[test]
     fn derives_known_nip06_vector() {
@@ -189,5 +192,74 @@ mod tests {
         .expect("content should recover");
 
         assert_eq!(recovered, b"hello");
+    }
+
+    #[test]
+    fn prepares_multi_block_write_contract() {
+        let payload = vec![b'g'; CONTENT_CAPACITY + 17];
+        let request = PrepareWriteRequest {
+            private_key_hex: "7f7ff03d123792d6ac594bfa67bf6d0c0ab55b6b1fdb6249303fe861f1ccba9a"
+                .into(),
+            display_name: "big.txt".into(),
+            mime_type: "text/plain".into(),
+            created_at: 1_701_907_200,
+            content_b64: base64::engine::general_purpose::STANDARD.encode(payload),
+            servers: vec![
+                "https://cdn.nostrcheck.me".into(),
+                "https://blossom.nostr.build".into(),
+                "https://blossom.yakihonne.com".into(),
+            ],
+        };
+
+        let plan =
+            prepare_single_block_write(&request).expect("multi-block write plan should build");
+
+        assert_eq!(plan.manifest.blocks.len(), 2);
+        assert_eq!(plan.uploads.len(), 6);
+        assert_eq!(plan.manifest.blocks[0].index, 0);
+        assert_eq!(plan.manifest.blocks[1].index, 1);
+    }
+
+    #[test]
+    fn recovers_multi_block_write_content() {
+        let payload = vec![b'z'; CONTENT_CAPACITY + 17];
+        let request = PrepareWriteRequest {
+            private_key_hex: "7f7ff03d123792d6ac594bfa67bf6d0c0ab55b6b1fdb6249303fe861f1ccba9a"
+                .into(),
+            display_name: "big.txt".into(),
+            mime_type: "text/plain".into(),
+            created_at: 1_701_907_200,
+            content_b64: base64::engine::general_purpose::STANDARD.encode(&payload),
+            servers: vec![
+                "https://cdn.nostrcheck.me".into(),
+                "https://blossom.nostr.build".into(),
+                "https://blossom.yakihonne.com".into(),
+            ],
+        };
+
+        let plan =
+            prepare_single_block_write(&request).expect("multi-block write plan should build");
+        let recovered = plan
+            .manifest
+            .blocks
+            .iter()
+            .map(|block| {
+                let encrypted = plan
+                    .uploads
+                    .iter()
+                    .find(|upload| upload.share_id_hex == block.share_id_hex)
+                    .expect("upload should exist");
+                recover_single_block_read(&RecoverReadRequest {
+                    private_key_hex: request.private_key_hex.clone(),
+                    document_id: plan.manifest.document_id.clone(),
+                    block_index: block.index,
+                    encrypted_block_b64: encrypted.body_b64.clone(),
+                })
+                .expect("block should recover")
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
+        assert_eq!(recovered, payload);
     }
 }
