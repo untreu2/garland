@@ -176,7 +176,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/openDiagnosticsButton"
-                    style="@style/Widget.Garland.SubtleButton"
+                    style="@style/Widget.Garland.ActionButton.Primary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/garland_content_gap"
@@ -240,7 +240,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/syncDocumentsButton"
-                        style="@style/Widget.Garland.ActionButton"
+                        style="@style/Widget.Garland.ActionButton.Primary"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
@@ -558,7 +558,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/executeUploadButton"
-                    style="@style/Widget.Garland.ActionButton"
+                    style="@style/Widget.Garland.ActionButton.Primary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"

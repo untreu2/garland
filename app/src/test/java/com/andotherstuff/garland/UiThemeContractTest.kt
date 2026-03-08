@@ -92,6 +92,22 @@ class UiThemeContractTest {
     }
 
     @Test
+    fun actionsAndDocumentPickersUseStrongerAffordanceStyles() {
+        val stylesXml = projectFile("app", "src", "main", "res", "values", "styles.xml")
+        val mainLayout = projectFile("app", "src", "main", "res", "layout", "activity_main.xml")
+        val diagnosticsLayout = projectFile("app", "src", "main", "res", "layout", "activity_diagnostics.xml")
+        val mainActivity = projectFile("app", "src", "main", "java", "com", "andotherstuff", "garland", "MainActivity.kt")
+        val diagnosticsActivity = projectFile("app", "src", "main", "java", "com", "andotherstuff", "garland", "DiagnosticsActivity.kt")
+
+        assertTrue(stylesXml.contains("Widget.Garland.ActionButton.Primary"))
+        assertTrue(stylesXml.contains("Widget.Garland.DocumentPickerButton"))
+        assertTrue(mainLayout.contains("@style/Widget.Garland.ActionButton.Primary"))
+        assertTrue(diagnosticsLayout.contains("@style/Widget.Garland.ActionButton.Primary"))
+        assertTrue(mainActivity.contains("R.style.Widget_Garland_DocumentPickerButton"))
+        assertTrue(diagnosticsActivity.contains("R.style.Widget_Garland_DocumentPickerButton"))
+    }
+
+    @Test
     fun styleAndColorTokensExposeSemanticDiagnosticStates() {
         val stylesXml = projectFile("app", "src", "main", "res", "values", "styles.xml")
         val colorsXml = projectFile("app", "src", "main", "res", "values", "colors.xml")

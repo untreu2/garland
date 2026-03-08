@@ -358,7 +358,11 @@ class MainActivity : AppCompatActivity() {
 
         records.forEach { record ->
             val planDecode = GarlandPlanInspector.decodeResult(store.readUploadPlan(record.documentId))
-            val button = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+            val button = MaterialButton(
+                android.view.ContextThemeWrapper(this, R.style.Widget_Garland_DocumentPickerButton),
+                null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle,
+            ).apply {
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -367,6 +371,14 @@ class MainActivity : AppCompatActivity() {
                 }
                 isAllCaps = false
                 textAlignment = android.view.View.TEXT_ALIGNMENT_VIEW_START
+                gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+                setPaddingRelative(
+                    resources.getDimensionPixelSize(R.dimen.garland_card_padding),
+                    resources.getDimensionPixelSize(R.dimen.garland_content_gap),
+                    resources.getDimensionPixelSize(R.dimen.garland_card_padding),
+                    resources.getDimensionPixelSize(R.dimen.garland_content_gap),
+                )
+                setLineSpacing(resources.getDimension(R.dimen.garland_tight_gap), 1f)
                 text = DocumentDiagnosticsFormatter.listLabel(
                     record = record,
                     summary = planDecode.summary,
@@ -387,6 +399,7 @@ class MainActivity : AppCompatActivity() {
         button.backgroundTintList = ColorStateList.valueOf(backgroundColor)
         button.strokeColor = ColorStateList.valueOf(strokeColor)
         button.setTextColor(textColor)
+        button.cornerRadius = resources.getDimensionPixelSize(R.dimen.garland_card_padding)
         button.strokeWidth = if (isSelected) {
             (2 * resources.displayMetrics.density).toInt()
         } else {
