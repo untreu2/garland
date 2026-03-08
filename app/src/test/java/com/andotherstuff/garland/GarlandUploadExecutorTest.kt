@@ -607,7 +607,7 @@ class GarlandUploadExecutorTest {
             )
 
             val client = OkHttpClient()
-            val executor = GarlandUploadExecutor(store, client)
+            val executor = GarlandUploadExecutor(store, client, retrySleep = {})
             val result = executor.executeDocumentUpload(document.documentId, listOf(relayUrl))
 
             assertTrue(result.success)
@@ -731,7 +731,7 @@ class GarlandUploadExecutorTest {
         )
 
         val client = OkHttpClient()
-        val executor = GarlandUploadExecutor(store, client)
+        val executor = GarlandUploadExecutor(store, client, retrySleep = {})
         val result = executor.executeDocumentUpload(document.documentId, listOf("wss://relay.example"))
 
         assertFalse(result.success)

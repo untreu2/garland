@@ -29,9 +29,11 @@ open class GarlandUploadExecutor(
     private val privateKeyProvider: (() -> String?)? = null,
     private val authEventSigner: BlossomAuthEventSigner = NativeBridgeBlossomAuthEventSigner(gson),
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
+    private val retrySleep: (Long) -> Unit = { Thread.sleep(it) },
 ) {
     private companion object {
         const val MAX_UPLOAD_ATTEMPTS = 3
+        const val INITIAL_RETRY_DELAY_MS = 500L
         const val UNREADABLE_UPLOAD_PLAN_MESSAGE = "Unreadable upload plan metadata"
         val SHARE_ID_HEX_REGEX = Regex("^[0-9a-f]{64}$")
     }
@@ -326,6 +328,7 @@ open class GarlandUploadExecutor(
                             responseBodyText = responseBody.body?.string(),
                         )
                         if (shouldRetryUploadResponse(responseBody.code) && attempt < MAX_UPLOAD_ATTEMPTS) {
+                            retryDelay(attempt)
                             return@use
                         }
                         val message = uploadAttemptSummary(baseMessage, attempt)
@@ -361,6 +364,7 @@ open class GarlandUploadExecutor(
                 }
             } catch (error: IOException) {
                 if (attempt < MAX_UPLOAD_ATTEMPTS) {
+                    retryDelay(attempt)
                     continue
                 }
                 val baseMessage = uploadNetworkFailureMessage(upload.serverUrl, error)
@@ -495,6 +499,11 @@ open class GarlandUploadExecutor(
 
     private fun shouldRetryUploadResponse(statusCode: Int): Boolean {
         return statusCode == 408 || statusCode == 425 || statusCode == 429 || statusCode in 500..599
+    }
+
+    private fun retryDelay(attempt: Int) {
+        val delayMs = INITIAL_RETRY_DELAY_MS * (1L shl (attempt - 1).coerceAtMost(4))
+        retrySleep(delayMs)
     }
 
     private fun invalidBlossomServerUrlMessage(index: Int, error: IllegalArgumentException): String {
