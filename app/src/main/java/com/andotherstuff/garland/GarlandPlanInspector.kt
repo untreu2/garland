@@ -54,6 +54,7 @@ object GarlandPlanInspector {
         val sizeBytes = manifest.requiredLong("size_bytes")?.takeIf { it >= 0L } ?: return null
         val sha256Hex = manifest.requiredString("sha256_hex")?.takeIf { it.isNotBlank() } ?: return null
         val blocks = manifest.requiredArray("blocks") ?: return null
+        if (blocks.size() == 0) return null
         val servers = decodeServers(blocks) ?: return null
         return GarlandPlanSummary(
             documentId = documentId,
@@ -71,6 +72,7 @@ object GarlandPlanInspector {
             for (block in blocks) {
                 val payload = block.takeIf { it.isJsonObject }?.asJsonObject ?: return null
                 val rawServers = payload.requiredArray("servers") ?: return null
+                if (rawServers.size() == 0) return null
                 for (server in rawServers) {
                     val value = server.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
                         ?.takeIf { it.isNotBlank() }

@@ -91,4 +91,25 @@ class GarlandPlanInspectorTest {
         assertNull(GarlandPlanInspector.summarize("{\"plan\":{}}"))
         assertNull(GarlandPlanInspector.summarize(null))
     }
+
+    @Test
+    fun returnsNullWhenManifestBlocksAreEmpty() {
+        assertNull(
+            GarlandPlanInspector.summarize(
+                """
+                {
+                  "plan": {
+                    "manifest": {
+                      "document_id": "doc123",
+                      "mime_type": "text/plain",
+                      "size_bytes": 5,
+                      "sha256_hex": "abc123",
+                      "blocks": []
+                    }
+                  }
+                }
+                """.trimIndent()
+            )
+        )
+    }
 }

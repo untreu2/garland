@@ -122,6 +122,77 @@ class GarlandDownloadExecutorTest {
     }
 
     @Test
+    fun marksRestoreAsFailedWhenManifestBlockIndexesSkipAhead() {
+        val tempDir = Files.createTempDirectory("garland-download-index-gap-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val document = store.createDocument("note.txt", "text/plain")
+        store.saveUploadPlan(
+            document.documentId,
+            """
+            {
+              "plan": {
+                "manifest": {
+                  "document_id": "doc123",
+                  "blocks": [
+                    {
+                      "index": 0,
+                      "share_id_hex": "aa",
+                      "servers": ["https://blossom.one"]
+                    },
+                    {
+                      "index": 2,
+                      "share_id_hex": "bb",
+                      "servers": ["https://blossom.two"]
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent()
+        )
+        val executor = GarlandDownloadExecutor(store = store, recoverBlock = { error("should not recover") })
+
+        val result = executor.restoreDocument(document.documentId, "deadbeef")
+
+        assertFalse(result.success)
+        assertEquals("Manifest block indexes must start at 0 and stay contiguous", result.message)
+        assertEquals("download-failed", store.readRecord(document.documentId)?.uploadStatus)
+    }
+
+    @Test
+    fun marksRestoreAsFailedWhenManifestBlockHasNoServers() {
+        val tempDir = Files.createTempDirectory("garland-download-missing-servers-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val document = store.createDocument("note.txt", "text/plain")
+        store.saveUploadPlan(
+            document.documentId,
+            """
+            {
+              "plan": {
+                "manifest": {
+                  "document_id": "doc123",
+                  "blocks": [
+                    {
+                      "index": 0,
+                      "share_id_hex": "aa",
+                      "servers": []
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent()
+        )
+        val executor = GarlandDownloadExecutor(store = store, recoverBlock = { error("should not recover") })
+
+        val result = executor.restoreDocument(document.documentId, "deadbeef")
+
+        assertFalse(result.success)
+        assertEquals("Manifest block 0 is missing servers", result.message)
+        assertEquals("download-failed", store.readRecord(document.documentId)?.uploadStatus)
+    }
+
+    @Test
     fun restoresDocumentFromStoredManifest() {
         val tempDir = Files.createTempDirectory("garland-download-test").toFile()
         val store = LocalDocumentStoreImpl(tempDir)

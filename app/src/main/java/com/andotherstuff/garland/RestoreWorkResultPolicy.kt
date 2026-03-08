@@ -15,7 +15,15 @@ internal object RestoreWorkResultPolicy {
     fun shouldRetry(message: String?): Boolean {
         val normalized = message?.trim().orEmpty()
         if (normalized.isBlank()) return true
-        if (normalized in permanentFailures || normalized.startsWith("Invalid Blossom server URL")) return false
+        if (
+            normalized in permanentFailures ||
+            normalized.startsWith("Invalid Blossom server URL") ||
+            normalized == "Manifest block indexes must start at 0 and stay contiguous" ||
+            normalized == "Manifest is missing document ID" ||
+            normalized.startsWith("Manifest block ")
+        ) {
+            return false
+        }
         return true
     }
 }

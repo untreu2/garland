@@ -45,12 +45,13 @@ class GarlandDownloadExecutor(
             ?: return DownloadExecutionResult(false, 0, 0, "Upload plan is missing manifest").also {
                 store.updateUploadStatus(documentId, "download-failed", it.message)
             }
-        val blocks = manifest.blocks
-        if (blocks.isEmpty()) {
-            return DownloadExecutionResult(false, 0, 0, "Manifest has no blocks").also {
+        val manifestValidationError = validateManifest(manifest)
+        if (manifestValidationError != null) {
+            return DownloadExecutionResult(false, 0, 0, manifestValidationError).also {
                 store.updateUploadStatus(documentId, "download-failed", it.message)
             }
         }
+        val blocks = manifest.blocks
 
         val restoredContent = mutableListOf<Byte>()
         blocks.forEach { block ->
@@ -160,6 +161,18 @@ class GarlandDownloadExecutor(
     private fun invalidBlossomServerUrlMessage(error: IllegalArgumentException): String {
         val detail = error.message?.trim().orEmpty()
         return if (detail.isBlank()) "Invalid Blossom server URL" else "Invalid Blossom server URL: $detail"
+    }
+
+    private fun validateManifest(manifest: DownloadManifestEnvelope): String? {
+        if (manifest.documentId.isBlank()) return "Manifest is missing document ID"
+        if (manifest.blocks.isEmpty()) return "Manifest has no blocks"
+        manifest.blocks.forEachIndexed { expectedIndex, block ->
+            if (block.index != expectedIndex) return "Manifest block indexes must start at 0 and stay contiguous"
+            if (block.shareIdHex.isBlank()) return "Manifest block $expectedIndex is missing share ID"
+            if (block.servers.isEmpty()) return "Manifest block $expectedIndex is missing servers"
+            if (block.servers.any { it.isBlank() }) return "Manifest block $expectedIndex has blank server URL"
+        }
+        return null
     }
 
     private fun decodeRecoveredContent(contentBase64: String?): ByteArray? {
