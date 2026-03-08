@@ -147,8 +147,10 @@ fn derive_block_keys(
     let mut enc_key = [0_u8; 32];
     let mut mac_key = [0_u8; 32];
 
-    let block_info = format!("garland-mvp:block:{}", block_index);
-    hk.expand(block_info.as_bytes(), &mut block_key)
+    let mut block_info = Vec::with_capacity(b"garland-v1:block:".len() + 8);
+    block_info.extend_from_slice(b"garland-v1:block:");
+    block_info.extend_from_slice(&(block_index as u64).to_be_bytes());
+    hk.expand(&block_info, &mut block_key)
         .map_err(|_| CryptoError::HkdfExpansionFailed)?;
 
     let block_hk = Hkdf::<Sha256>::new(None, &block_key);

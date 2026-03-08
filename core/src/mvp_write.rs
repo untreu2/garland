@@ -64,6 +64,8 @@ pub enum WritePlanError {
     InvalidContentBase64,
     #[error("private key hex is invalid")]
     InvalidPrivateKey,
+    #[error("document ID is invalid")]
+    InvalidDocumentId,
     #[error("crypto step failed: {0}")]
     Crypto(String),
     #[error("nostr event signing failed: {0}")]
@@ -78,6 +80,8 @@ pub enum ReadRecoveryError {
     InvalidBlockBase64,
     #[error("private key hex is invalid")]
     InvalidPrivateKey,
+    #[error("document ID is invalid")]
+    InvalidDocumentId,
     #[error("crypto step failed: {0}")]
     Crypto(String),
 }
@@ -208,11 +212,13 @@ fn decode_private_key_read(private_key_hex: &str) -> Result<[u8; 32], ReadRecove
 fn derive_file_key(private_key: &[u8; 32], document_id: &str) -> Result<[u8; 32], WritePlanError> {
     let hk = Hkdf::<Sha256>::new(None, private_key);
     let mut file_key = [0_u8; 32];
-    hk.expand(
-        format!("garland-mvp:file:{}", document_id).as_bytes(),
-        &mut file_key,
-    )
-    .map_err(|err| WritePlanError::Crypto(err.to_string()))?;
+    let document_id_bytes =
+        decode_document_id(document_id).map_err(|_| WritePlanError::InvalidDocumentId)?;
+    let mut info = Vec::with_capacity(b"garland-v1:file:".len() + document_id_bytes.len());
+    info.extend_from_slice(b"garland-v1:file:");
+    info.extend_from_slice(&document_id_bytes);
+    hk.expand(&info, &mut file_key)
+        .map_err(|err| WritePlanError::Crypto(err.to_string()))?;
     Ok(file_key)
 }
 
@@ -222,12 +228,28 @@ fn derive_file_key_read(
 ) -> Result<[u8; 32], ReadRecoveryError> {
     let hk = Hkdf::<Sha256>::new(None, private_key);
     let mut file_key = [0_u8; 32];
-    hk.expand(
-        format!("garland-mvp:file:{}", document_id).as_bytes(),
-        &mut file_key,
-    )
-    .map_err(|err| ReadRecoveryError::Crypto(err.to_string()))?;
+    let document_id_bytes =
+        decode_document_id(document_id).map_err(|_| ReadRecoveryError::InvalidDocumentId)?;
+    let mut info = Vec::with_capacity(b"garland-v1:file:".len() + document_id_bytes.len());
+    info.extend_from_slice(b"garland-v1:file:");
+    info.extend_from_slice(&document_id_bytes);
+    hk.expand(&info, &mut file_key)
+        .map_err(|err| ReadRecoveryError::Crypto(err.to_string()))?;
     Ok(file_key)
+}
+
+fn decode_document_id(document_id: &str) -> Result<[u8; 32], hex::FromHexError> {
+    let bytes = hex::decode(document_id)?;
+    let array: [u8; 32] = bytes
+        .try_into()
+        .map_err(|_| hex::FromHexError::InvalidStringLength)?;
+    Ok(array)
+}
+
+fn random_document_id_hex() -> String {
+    let mut document_id = [0_u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut document_id);
+    hex::encode(document_id)
 }
 
 fn random_nonce() -> [u8; 12] {

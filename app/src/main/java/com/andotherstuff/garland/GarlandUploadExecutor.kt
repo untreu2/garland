@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.security.MessageDigest
 import java.util.Base64
 
 data class UploadExecutionResult(
@@ -32,13 +33,14 @@ open class GarlandUploadExecutor(
     private companion object {
         const val MAX_UPLOAD_ATTEMPTS = 3
         const val UNREADABLE_UPLOAD_PLAN_MESSAGE = "Unreadable upload plan metadata"
-        val SHARE_ID_HEX_REGEX = Regex("^[0-9a-fA-F]+$")
+        val SHARE_ID_HEX_REGEX = Regex("^[0-9a-f]{64}$")
     }
 
     private data class PreparedUploadRequest(
         val upload: UploadBody,
         val requestUrl: String,
         val body: ByteArray,
+        val contentType: String,
         val authorizationHeader: String?,
     )
 
@@ -103,8 +105,9 @@ open class GarlandUploadExecutor(
             }
         }
         val privateKeyHex = privateKeyProvider?.invoke()?.trim()?.takeIf { it.isNotEmpty() }
+        val uploadContentType = resolveUploadContentType(documentId, response.plan.manifest?.mimeType)
         val preparedUploads = uploads.mapIndexed { index, upload ->
-            val prepared = runCatching { prepareUploadRequest(upload, index + 1, privateKeyHex) }
+            val prepared = runCatching { prepareUploadRequest(upload, index + 1, privateKeyHex, uploadContentType) }
                 .getOrElse { error ->
                     val message = error.message ?: "Failed to prepare upload request"
                     return UploadExecutionResult(false, 0, 0, false, message).also {
@@ -232,7 +235,7 @@ open class GarlandUploadExecutor(
         )
     }
 
-    private fun prepareUploadRequest(upload: UploadBody, index: Int, privateKeyHex: String?): PreparedUploadResult {
+    private fun prepareUploadRequest(upload: UploadBody, index: Int, privateKeyHex: String?, contentType: String): PreparedUploadResult {
         if (upload.serverUrl.isBlank()) {
             return PreparedUploadResult(
                 diagnostic = planDiagnostic("plan.uploads[$index].server_url", "missing", "Upload plan entry $index is missing Blossom server URL"),
@@ -277,12 +280,24 @@ open class GarlandUploadExecutor(
                 errorMessage = "Upload plan entry $index has invalid base64 share body",
             )
         }
+        val computedShareIdHex = sha256Hex(body)
+        if (computedShareIdHex != upload.shareIdHex) {
+            return PreparedUploadResult(
+                diagnostic = planDiagnostic(
+                    "plan.uploads[$index].share_id_hex",
+                    "invalid",
+                    "Upload plan entry $index share body does not match share ID",
+                ),
+                errorMessage = "Upload plan entry $index share body does not match share ID",
+            )
+        }
 
         return PreparedUploadResult(
             request = PreparedUploadRequest(
                 upload = upload,
                 requestUrl = requestUrl,
                 body = body,
+                contentType = contentType,
                 authorizationHeader = buildAuthorizationHeader(privateKeyHex, upload.shareIdHex, index),
             )
         )
@@ -295,8 +310,8 @@ open class GarlandUploadExecutor(
                 .url(preparedUpload.requestUrl)
                 .header("X-SHA-256", upload.shareIdHex)
                 .header("X-Content-Length", preparedUpload.body.size.toString())
-                .header("X-Content-Type", "application/octet-stream")
-                .put(preparedUpload.body.toRequestBody("application/octet-stream".toMediaType()))
+                .header("X-Content-Type", preparedUpload.contentType)
+                .put(preparedUpload.body.toRequestBody(preparedUpload.contentType.toMediaType()))
             preparedUpload.authorizationHeader?.let { requestBuilder.header("Authorization", it) }
             val request = requestBuilder.build()
 
@@ -381,6 +396,13 @@ open class GarlandUploadExecutor(
         return "Nostr ${Base64.getUrlEncoder().withoutPadding().encodeToString(authJson.toByteArray(Charsets.UTF_8))}"
     }
 
+    private fun resolveUploadContentType(documentId: String, manifestMimeType: String?): String {
+        val manifestType = manifestMimeType?.trim()?.takeIf { it.isNotEmpty() }
+        if (manifestType != null) return manifestType
+        val recordType = store.readRecord(documentId)?.mimeType?.trim()?.takeIf { it.isNotEmpty() }
+        return recordType ?: "application/octet-stream"
+    }
+
     private fun parseUploadResponse(upload: UploadBody, responseBodyText: String): ResolvedUploadTarget? {
         if (responseBodyText.isBlank()) return null
         val payload = runCatching { JsonParser.parseString(responseBodyText) }.getOrNull()
@@ -400,6 +422,11 @@ open class GarlandUploadExecutor(
                     "Upload response from ${upload.serverUrl} returned invalid retrieval URL: ${it.message ?: retrievalUrl}"
                 )
             }
+        if (!isSameOrigin(upload.serverUrl, retrievalUrl)) {
+            throw IllegalStateException(
+                "Upload response from ${upload.serverUrl} returned cross-origin retrieval URL: $retrievalUrl"
+            )
+        }
         return ResolvedUploadTarget(upload.serverUrl, upload.shareIdHex, retrievalUrl)
     }
 
@@ -490,6 +517,21 @@ open class GarlandUploadExecutor(
 
     private fun planDiagnostic(field: String, status: String, detail: String): DocumentPlanDiagnostic {
         return DocumentPlanDiagnostic(field = field, status = status, detail = detail)
+    }
+
+    private fun sha256Hex(body: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(body)
+        val hex = StringBuilder(digest.size * 2)
+        digest.forEach { byte -> hex.append("%02x".format(byte.toInt() and 0xff)) }
+        return hex.toString()
+    }
+
+    private fun isSameOrigin(serverUrl: String, retrievalUrl: String): Boolean {
+        val server = runCatching { Request.Builder().url(serverUrl).build().url }.getOrNull() ?: return false
+        val retrieval = runCatching { Request.Builder().url(retrievalUrl).build().url }.getOrNull() ?: return false
+        return server.scheme == retrieval.scheme &&
+            server.host == retrieval.host &&
+            server.port == retrieval.port
     }
 
     private fun JsonObject.optionalString(fieldName: String): String? {
