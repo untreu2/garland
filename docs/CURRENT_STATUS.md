@@ -34,4 +34,4 @@
 - `./gradlew compileDebugAndroidTestKotlin` -> pass
 - `./gradlew assembleDebug` -> pass
 - `cargo test` -> pass
-- `adb devices` -> unavailable in this CLI environment (`adb: command not found`)
+- `adb devices` -> command works, but no emulator or device is currently attached
