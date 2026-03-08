@@ -5,9 +5,9 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_garland_mark"
+        android:icon="@drawable/garland_logo"
         android:label="Garland"
-        android:roundIcon="@drawable/ic_garland_mark"
+        android:roundIcon="@drawable/garland_logo"
         android:supportsRtl="true"
         android:theme="@style/Theme.Garland">
 

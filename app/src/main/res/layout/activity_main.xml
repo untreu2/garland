@@ -28,7 +28,7 @@
                     android:layout_width="88dp"
                     android:layout_height="88dp"
                     android:contentDescription="@string/app_name"
-                    android:src="@drawable/ic_garland_mark" />
+                    android:src="@drawable/garland_logo" />
 
                 <TextView
                     android:id="@+id/titleText"

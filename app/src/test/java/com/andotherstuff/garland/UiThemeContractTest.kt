@@ -31,6 +31,15 @@ class UiThemeContractTest {
         assertTrue(mainLayout.contains("@string/troubleshooting_actions_label"))
     }
 
+    @Test
+    fun appUsesBundledGarlandLogoForLauncherAndHeroImage() {
+        val manifestXml = projectFile("app", "src", "main", "AndroidManifest.xml")
+        val mainLayout = projectFile("app", "src", "main", "res", "layout", "activity_main.xml")
+
+        assertTrue(manifestXml.contains("@drawable/garland_logo"))
+        assertTrue(mainLayout.contains("@drawable/garland_logo"))
+    }
+
     private fun projectFile(vararg segments: String): String {
         val cwd = Path.of(System.getProperty("user.dir"))
         val repoRoot = if (cwd.resolve("app").toFile().exists()) cwd else cwd.parent
