@@ -47,7 +47,7 @@ Evidence to capture:
 
 ## 4. Ship gate
 
-- [ ] All no-device verification commands pass on the release candidate commit
+- [x] All no-device verification commands pass on the release candidate commit
 - [ ] Connected-device instrumentation passes or any failures are accepted and documented
 - [ ] Manual alpha checks are complete
 - [ ] `README.md`, `docs/CURRENT_STATUS.md`, and `NEXT_WAVE.md` match the release state

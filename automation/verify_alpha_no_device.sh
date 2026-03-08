@@ -19,3 +19,4 @@ run_step "Android instrumentation compile" ./gradlew compileDebugAndroidTestKotl
 run_step "Debug APK build" ./gradlew assembleDebug
 
 printf '\nNo-device alpha verification passed.\n'
+printf 'Remaining release gates: connected Android instrumentation and manual device sign-off.\n'

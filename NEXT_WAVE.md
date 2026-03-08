@@ -16,28 +16,30 @@ This file tracks the next integration wave after the current Garland MVP.
 
 ## Current Status
 
-- Android unit tests pass with `./gradlew test`
+- Android unit tests pass with `./gradlew testDebugUnitTest`
 - Rust core tests pass with `cargo test`
+- Android instrumentation sources compile with `./gradlew compileDebugAndroidTestKotlin`
 - debug build passes with `./gradlew assembleDebug`
 - no-device alpha verification now has a repeatable path with `automation/verify_alpha_no_device.sh`
 - fake Blossom/relay harness coverage now exists in JVM tests and Android test sources
-- connected instrumentation is still pending because it has not been run on an emulator or device
+- connected instrumentation and manual device checks are still pending because they have not been run on an emulator or device
 - `MainActivity` keeps a compact diagnostics summary and now opens a dedicated diagnostics screen for fuller per-document triage
 - the diagnostics screen now keeps recent per-document sync history and can copy a tester-facing report
 - manifest validation now rejects duplicate or invalid server entries and restore-side plan failures now surface structured diagnostics
 - provider MIME fallback naming now covers wildcard non-image creates such as `text/*` and `application/*`
+- configured relays and Blossom servers are now trimmed, deduplicated, and defaulted before upload or relay work starts
 
 ## Alpha Blockers
 
 1. End-to-end Android verification
     - run connected instrumentation for provider flow, worker flow, and diagnostics flow on an emulator or device
 
-2. Diagnostics UX
-    - collect tester feedback on whether the new copyable report and recent-history view are enough on-device
-
-3. Provider and file handling polish
+2. Provider and file handling polish
     - exercise thumbnail behavior and provider contracts on-device
     - verify wildcard and non-image MIME handling on a real picker flow
+
+3. Diagnostics UX
+    - collect tester feedback on whether the new copyable report and recent-history view are enough on-device
 
 4. Packaging and manifest validation
     - verify the hardened malformed-plan cases against real device and worker flows
@@ -51,7 +53,7 @@ This file tracks the next integration wave after the current Garland MVP.
 
 2. Connected-device verification pass
     - bring up an emulator or device path that can run `connectedDebugAndroidTest`
-   - execute provider, worker, and diagnostics instrumentation against the current MVP before more UI churn
+    - execute provider, worker, and diagnostics instrumentation against the current MVP before ship sign-off
 
 3. Diagnostics screen follow-through
     - keep the dedicated diagnostics view aligned with tester feedback

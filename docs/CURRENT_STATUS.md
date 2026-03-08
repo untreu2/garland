@@ -2,8 +2,9 @@
 
 ## Verified in this repo
 
-- Android unit tests pass with `./gradlew test`
-- No-device alpha verification now has a repeatable entry point at `automation/verify_alpha_no_device.sh`
+- No-device alpha verification passes with `automation/verify_alpha_no_device.sh`
+- Android unit tests pass with `./gradlew testDebugUnitTest`
+- Android instrumentation sources compile with `./gradlew compileDebugAndroidTestKotlin`
 - Debug APK builds with `./gradlew assembleDebug`
 - Rust core tests pass with `cargo test`
 
@@ -30,7 +31,8 @@
 
 ## Evidence snapshot
 
-- `./gradlew test` -> pass
+- `automation/verify_alpha_no_device.sh` -> pass
+- `./gradlew testDebugUnitTest` -> pass
 - `./gradlew compileDebugAndroidTestKotlin` -> pass
 - `./gradlew assembleDebug` -> pass
 - `cargo test` -> pass
