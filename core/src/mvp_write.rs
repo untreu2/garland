@@ -1,13 +1,14 @@
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hkdf::Hkdf;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+use crate::commit_crypto::{encode_commit_content, encrypt_commit_payload};
 use crate::crypto::{decrypt_block, prepare_replication_upload, BlossomServer};
 use crate::nostr_event::{sign_custom_event, SignedEvent, UnsignedEvent};
 use crate::packaging::CONTENT_CAPACITY;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrepareWriteRequest {
@@ -51,6 +52,22 @@ pub struct UploadInstruction {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct CommitPayloadBlock {
+    pub index: u32,
+    pub share_id_hex: String,
+    pub servers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct EncryptedCommitPayload {
+    pub version: u32,
+    pub document_id: String,
+    pub size_bytes: usize,
+    pub sha256_hex: String,
+    pub blocks: Vec<CommitPayloadBlock>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct PreparedWritePlan {
     pub document_id: String,
     pub manifest: WriteManifest,
@@ -72,6 +89,8 @@ pub enum WritePlanError {
     EventSigning(String),
     #[error("manifest serialization failed")]
     ManifestSerialization,
+    #[error("commit payload encryption failed: {0}")]
+    CommitEncryption(String),
 }
 
 #[derive(Debug, Error)]
@@ -148,15 +167,35 @@ pub fn prepare_single_block_write(
         created_at: request.created_at,
         blocks: manifest_blocks,
     };
-    let manifest_json =
-        serde_json::to_string(&manifest).map_err(|_| WritePlanError::ManifestSerialization)?;
+    let encrypted_commit_payload = EncryptedCommitPayload {
+        version: manifest.version,
+        document_id: manifest.document_id.clone(),
+        size_bytes: manifest.size_bytes,
+        sha256_hex: manifest.sha256_hex.clone(),
+        blocks: manifest
+            .blocks
+            .iter()
+            .map(|block| CommitPayloadBlock {
+                index: block.index,
+                share_id_hex: block.share_id_hex.clone(),
+                servers: block.servers.clone(),
+            })
+            .collect(),
+    };
+    let encrypted_commit_payload_json = serde_json::to_vec(&encrypted_commit_payload)
+        .map_err(|_| WritePlanError::ManifestSerialization)?;
+    let encrypted_commit_payload =
+        encrypt_commit_payload(&request.private_key_hex, &encrypted_commit_payload_json)
+            .map_err(|err| WritePlanError::CommitEncryption(err.to_string()))?;
+    let commit_content = encode_commit_content(&encrypted_commit_payload)
+        .map_err(|err| WritePlanError::CommitEncryption(err.to_string()))?;
     let commit_event = sign_custom_event(
         &request.private_key_hex,
         &UnsignedEvent {
             created_at: request.created_at,
             kind: 1097,
             tags: vec![],
-            content: STANDARD.encode(manifest_json.as_bytes()),
+            content: commit_content,
         },
     )
     .map_err(|err| WritePlanError::EventSigning(err.to_string()))?;

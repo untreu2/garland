@@ -1,3 +1,4 @@
+pub mod commit_crypto;
 pub mod crypto;
 pub mod identity;
 pub mod jni_api;
@@ -9,7 +10,9 @@ pub mod packaging;
 mod tests {
     use base64::Engine as _;
     use pretty_assertions::assert_eq;
+    use serde_json::Value;
 
+    use crate::commit_crypto::{decode_commit_content, decrypt_commit_payload};
     use crate::crypto::{
         decrypt_block, encrypt_block, prepare_replication_upload, BlossomServer, REPLICATION_FACTOR,
     };
@@ -240,6 +243,36 @@ mod tests {
             serde_json::to_string(&plan.manifest).expect("manifest should serialize");
         assert!(!manifest_json.contains("display_name"));
         assert!(!manifest_json.contains("mime_type"));
+        assert!(!plan
+            .commit_event
+            .content
+            .contains(&plan.manifest.document_id));
+        assert!(!plan
+            .commit_event
+            .content
+            .contains(&plan.manifest.sha256_hex));
+        assert!(!plan
+            .commit_event
+            .content
+            .contains(&plan.manifest.blocks[0].share_id_hex));
+        assert!(!plan.commit_event.content.contains("cdn.nostrcheck.me"));
+        assert!(plan.commit_event.content.contains("\"version\":1"));
+        let encrypted_content = decode_commit_content(&plan.commit_event.content)
+            .expect("commit content should decode");
+        let decrypted_content =
+            decrypt_commit_payload(&request.private_key_hex, &encrypted_content)
+                .expect("commit payload should decrypt");
+        let payload: Value =
+            serde_json::from_slice(&decrypted_content).expect("commit payload should parse");
+        assert_eq!(
+            payload.get("document_id").and_then(Value::as_str),
+            Some(plan.manifest.document_id.as_str())
+        );
+        assert_eq!(
+            payload.get("size_bytes").and_then(Value::as_u64),
+            Some(plan.manifest.size_bytes as u64)
+        );
+        assert!(payload.get("created_at").is_none());
     }
 
     #[test]
@@ -260,6 +293,68 @@ mod tests {
         let second = prepare_single_block_write(&request).expect("second write plan should build");
 
         assert_ne!(first.document_id, second.document_id);
+    }
+
+    #[test]
+    fn tampered_commit_payload_fails_authentication() {
+        let request = PrepareWriteRequest {
+            private_key_hex: "7f7ff03d123792d6ac594bfa67bf6d0c0ab55b6b1fdb6249303fe861f1ccba9a"
+                .into(),
+            created_at: 1_701_907_200,
+            content_b64: "bXZwIGZpbGU=".into(),
+            servers: vec![
+                "https://cdn.nostrcheck.me".into(),
+                "https://blossom.nostr.build".into(),
+                "https://blossom.yakihonne.com".into(),
+            ],
+        };
+
+        let plan = prepare_single_block_write(&request).expect("write plan should build");
+        let mut encrypted_content = decode_commit_content(&plan.commit_event.content)
+            .expect("commit content should decode");
+        encrypted_content[12] ^= 0x01;
+
+        let error = decrypt_commit_payload(&request.private_key_hex, &encrypted_content)
+            .expect_err("tampered payload should fail auth");
+        assert_eq!(error.to_string(), "commit payload authentication failed");
+    }
+
+    #[test]
+    fn commit_content_rejects_wrong_key_and_invalid_envelope() {
+        let request = PrepareWriteRequest {
+            private_key_hex: "7f7ff03d123792d6ac594bfa67bf6d0c0ab55b6b1fdb6249303fe861f1ccba9a"
+                .into(),
+            created_at: 1_701_907_200,
+            content_b64: "bXZwIGZpbGU=".into(),
+            servers: vec![
+                "https://cdn.nostrcheck.me".into(),
+                "https://blossom.nostr.build".into(),
+                "https://blossom.yakihonne.com".into(),
+            ],
+        };
+
+        let plan = prepare_single_block_write(&request).expect("write plan should build");
+        let encrypted_content = decode_commit_content(&plan.commit_event.content)
+            .expect("commit content envelope should decode");
+
+        let wrong_key_error = decrypt_commit_payload(
+            "8f7ff03d123792d6ac594bfa67bf6d0c0ab55b6b1fdb6249303fe861f1ccba9a",
+            &encrypted_content,
+        )
+        .expect_err("wrong key should fail auth");
+        assert_eq!(
+            wrong_key_error.to_string(),
+            "commit payload authentication failed"
+        );
+
+        let envelope_error = decode_commit_content(
+            "{\"version\":2,\"algorithm\":\"wrong\",\"ciphertext_b64\":\"AA==\"}",
+        )
+        .expect_err("invalid envelope should fail");
+        assert_eq!(
+            envelope_error.to_string(),
+            "commit content envelope is invalid"
+        );
     }
 
     #[test]
