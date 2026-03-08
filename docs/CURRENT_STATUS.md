@@ -4,8 +4,10 @@
 
 - No-device alpha verification passes with `automation/verify_alpha_no_device.sh`
 - Android unit tests pass with `./gradlew testDebugUnitTest`
+- Android JVM coverage report generates with `./gradlew jacocoDebugUnitTestReport`
 - Android instrumentation sources compile with `./gradlew compileDebugAndroidTestKotlin`
 - Debug APK builds with `./gradlew assembleDebug`
+- Android lint passes with `./gradlew lintDebug`
 - Rust core tests pass with `cargo test`
 
 ## Current product shape
@@ -33,7 +35,9 @@
 
 - `automation/verify_alpha_no_device.sh` -> pass
 - `./gradlew testDebugUnitTest` -> pass
+- `./gradlew jacocoDebugUnitTestReport` -> pass
 - `./gradlew compileDebugAndroidTestKotlin` -> pass
 - `./gradlew assembleDebug` -> pass
+- `./gradlew lintDebug` -> pass
 - `cargo test` -> pass
 - `adb devices` -> command works, but no emulator or device is currently attached

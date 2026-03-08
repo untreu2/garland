@@ -32,8 +32,10 @@ This repo intentionally targets the smallest Android MVP that can:
 
 - `automation/verify_alpha_no_device.sh` passes and freezes the repo-side alpha sign-off path
 - `./gradlew testDebugUnitTest` passes for the Android unit-test suite
+- `./gradlew jacocoDebugUnitTestReport` generates the Android JVM coverage report
 - `./gradlew compileDebugAndroidTestKotlin` passes for the Android instrumentation source compile gate
 - `./gradlew assembleDebug` builds the debug APK successfully
+- `./gradlew lintDebug` passes for the Android static quality gate
 - `cargo test` passes for the Rust core
 - connected Android instrumentation and manual device checks remain the only open alpha-release gates
 

@@ -6,17 +6,21 @@ This checklist freezes the command path and evidence needed for alpha sign-off.
 
 - [x] Run `automation/verify_alpha_no_device.sh`
 - [x] Confirm the fake Blossom/relay harness covers upload, relay publish, and restore fallback paths in JVM tests
+- [x] Confirm `./gradlew jacocoDebugUnitTestReport` generates the Android JVM coverage report
 - [x] Confirm Android instrumentation sources compile with the fake harness via `./gradlew compileDebugAndroidTestKotlin`
 - [x] Confirm restore-side malformed manifest failures now surface structured diagnostics in JVM tests
 - [x] Confirm diagnostics reports now include recent per-document history and copyable export text in JVM tests
 - [x] Confirm wildcard non-image MIME fallback naming is covered in JVM and Android test sources
+- [x] Confirm `./gradlew lintDebug` passes for the Android static quality gate
 
 Evidence to capture:
 
 - `cargo test`
 - `./gradlew testDebugUnitTest`
+- `./gradlew jacocoDebugUnitTestReport`
 - `./gradlew compileDebugAndroidTestKotlin`
 - `./gradlew assembleDebug`
+- `./gradlew lintDebug`
 
 ## 2. Connected-device verification
 

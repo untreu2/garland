@@ -1,5 +1,6 @@
 /.gradle/
 /.kotlin/
+/.autoloop-logs/
 /build/
 /local.properties
 /app/build/

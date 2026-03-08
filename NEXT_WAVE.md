@@ -17,9 +17,11 @@ This file tracks the next integration wave after the current Garland MVP.
 ## Current Status
 
 - Android unit tests pass with `./gradlew testDebugUnitTest`
+- Android JVM coverage report generates with `./gradlew jacocoDebugUnitTestReport`
 - Rust core tests pass with `cargo test`
 - Android instrumentation sources compile with `./gradlew compileDebugAndroidTestKotlin`
 - debug build passes with `./gradlew assembleDebug`
+- Android lint passes with `./gradlew lintDebug`
 - no-device alpha verification now has a repeatable path with `automation/verify_alpha_no_device.sh`
 - fake Blossom/relay harness coverage now exists in JVM tests and Android test sources
 - connected instrumentation and manual device checks are still pending because they have not been run on an emulator or device
@@ -103,4 +105,5 @@ This file tracks the next integration wave after the current Garland MVP.
 
 4. Work the alpha release checklist
     - run `automation/verify_alpha_no_device.sh`
+    - capture `./gradlew jacocoDebugUnitTestReport`
     - finish the connected-device and manual sign-off items in `docs/ALPHA_RELEASE_CHECKLIST.md`
