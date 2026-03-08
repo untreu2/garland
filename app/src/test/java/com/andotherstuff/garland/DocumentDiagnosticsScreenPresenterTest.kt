@@ -1,6 +1,7 @@
 package com.andotherstuff.garland
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,7 +62,39 @@ class DocumentDiagnosticsScreenPresenterTest {
         assertEquals("Recent history (2 entries)", state.historyLabel)
         assertTrue(state.history?.contains("Relay published partial") == true)
         assertTrue(state.exportText.contains("Diagnostics report for selected.txt"))
+        assertEquals("Document ID: doc-selected", state.documentIdLabel)
+        assertEquals("Troubleshooting", state.troubleshootingLabel)
+        assertTrue(state.troubleshootingItems.contains("Retry relay publish after confirming relay connectivity and auth."))
         assertEquals(listOf("selected.txt", "other.txt"), state.documentOptions.map { it.label })
+    }
+
+    @Test
+    fun returnsHelpfulTroubleshootingForBackgroundAttemptAndUploadFailures() {
+        val diagnosticsJson = DocumentSyncDiagnosticsCodec.encode(
+            DocumentSyncDiagnostics(
+                uploads = listOf(DocumentEndpointDiagnostic("https://blossom.one", "failed", "HTTP 500")),
+                relays = listOf(DocumentEndpointDiagnostic("wss://relay.one", "ok", "Relay accepted commit event")),
+            )
+        )
+        val selected = record(
+            documentId = "doc-background",
+            displayName = "background.txt",
+            updatedAt = 30,
+            uploadStatus = "sync-running",
+            lastSyncMessage = "Running Garland sync in background",
+            lastSyncDetailsJson = diagnosticsJson,
+        )
+
+        val state = DocumentDiagnosticsScreenPresenter.build(
+            records = listOf(selected),
+            selectedDocumentId = "doc-background",
+            readUploadPlan = { sampleUploadPlanJson(documentId = it) },
+        )
+
+        assertEquals("Troubleshooting", state.troubleshootingLabel)
+        assertTrue(state.troubleshootingItems.contains("Background work is still active. Refresh after the current worker finishes."))
+        assertTrue(state.troubleshootingItems.contains("Retry upload after checking Blossom server reachability and payload health."))
+        assertFalse(state.troubleshootingItems.isEmpty())
     }
 
     @Test

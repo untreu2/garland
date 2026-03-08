@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -27,6 +28,7 @@ class DiagnosticsActivity : AppCompatActivity() {
 
         binding.refreshDiagnosticsButton.setOnClickListener { render() }
         binding.copyDiagnosticsButton.setOnClickListener { copyDiagnosticsReport() }
+        binding.copyDocumentIdButton.setOnClickListener { copySelectedDocumentId() }
         render()
     }
 
@@ -44,19 +46,32 @@ class DiagnosticsActivity : AppCompatActivity() {
         selectedDocumentId = state.selectedDocumentId
         title = state.title
         binding.selectedDocumentText.text = state.selectedLabel
+        binding.documentIdText.text = state.documentIdLabel
+        binding.documentIdText.visibility = if (state.documentIdLabel.isNullOrBlank()) View.GONE else View.VISIBLE
         binding.diagnosticsOverviewText.text = state.overview
         bindDiagnosticSection(binding.diagnosticsUploadsLabel, binding.diagnosticsUploadsText, state.uploadsLabel, state.uploads)
         bindDiagnosticSection(binding.diagnosticsRelaysLabel, binding.diagnosticsRelaysText, state.relaysLabel, state.relays)
         bindDiagnosticSection(binding.diagnosticsHistoryLabel, binding.diagnosticsHistoryText, state.historyLabel, state.history)
+        bindDiagnosticSection(
+            binding.diagnosticsTroubleshootingLabel,
+            binding.diagnosticsTroubleshootingText,
+            state.troubleshootingLabel,
+            state.troubleshootingItems.takeIf { it.isNotEmpty() }?.joinToString("\n") { "- $it" },
+        )
         renderDocumentOptions(state.documentOptions)
         binding.copyDiagnosticsButton.isEnabled = state.selectedDocumentId != null
         binding.copyDiagnosticsButton.tag = state.exportText
+        binding.copyDocumentIdButton.isEnabled = state.selectedDocumentId != null
     }
 
     private fun copyDiagnosticsReport() {
         val report = binding.copyDiagnosticsButton.tag as? String ?: return
-        val clipboard = getSystemService(ClipboardManager::class.java) ?: return
-        clipboard.setPrimaryClip(ClipData.newPlainText("Garland diagnostics", report))
+        copyText("Garland diagnostics", report)
+    }
+
+    private fun copySelectedDocumentId() {
+        val documentId = selectedDocumentId ?: return
+        copyText("Garland document ID", documentId)
     }
 
     private fun renderDocumentOptions(options: List<DocumentDiagnosticsOption>) {
@@ -97,6 +112,12 @@ class DiagnosticsActivity : AppCompatActivity() {
             labelView.text = label
             textView.text = content
         }
+    }
+
+    private fun copyText(label: String, text: String) {
+        val clipboard = getSystemService(ClipboardManager::class.java) ?: return
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(this, "$label copied", Toast.LENGTH_SHORT).show()
     }
 
     companion object {
