@@ -11,8 +11,8 @@ import java.util.concurrent.TimeUnit
 class GarlandSyncExecutorTest {
     private companion object {
         const val HELLO_SHARE_ID = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-        const val OTHER_SHARE_ID = "d9298a10d1b0735837dc4bd85dac641b0f3cef27a47e5d53a54f2f3f5b2fcffa"
         const val QUEUED_SHARE_ID = "d36be6494248ee06ac18f38ea1119dfe4699fdcfcbbcc30a2e4f1ccbce68dfac"
+        const val OTHER_SHARE_ID = "d9298a10d1b0735837dc4bd85dac641b0f3cef27a47e5d53a54f2f3f5b2fcffa"
     }
 
     @Test

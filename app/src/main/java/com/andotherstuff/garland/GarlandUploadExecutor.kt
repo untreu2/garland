@@ -40,6 +40,7 @@ open class GarlandUploadExecutor(
         val upload: UploadBody,
         val requestUrl: String,
         val body: ByteArray,
+        val contentType: String,
         val authorizationHeader: String?,
     )
 
@@ -104,8 +105,9 @@ open class GarlandUploadExecutor(
             }
         }
         val privateKeyHex = privateKeyProvider?.invoke()?.trim()?.takeIf { it.isNotEmpty() }
+        val uploadContentType = resolveUploadContentType(documentId, response.plan.manifest?.mimeType)
         val preparedUploads = uploads.mapIndexed { index, upload ->
-            val prepared = runCatching { prepareUploadRequest(upload, index + 1, privateKeyHex) }
+            val prepared = runCatching { prepareUploadRequest(upload, index + 1, privateKeyHex, uploadContentType) }
                 .getOrElse { error ->
                     val message = error.message ?: "Failed to prepare upload request"
                     return UploadExecutionResult(false, 0, 0, false, message).also {
@@ -233,7 +235,7 @@ open class GarlandUploadExecutor(
         )
     }
 
-    private fun prepareUploadRequest(upload: UploadBody, index: Int, privateKeyHex: String?): PreparedUploadResult {
+    private fun prepareUploadRequest(upload: UploadBody, index: Int, privateKeyHex: String?, contentType: String): PreparedUploadResult {
         if (upload.serverUrl.isBlank()) {
             return PreparedUploadResult(
                 diagnostic = planDiagnostic("plan.uploads[$index].server_url", "missing", "Upload plan entry $index is missing Blossom server URL"),
@@ -295,6 +297,7 @@ open class GarlandUploadExecutor(
                 upload = upload,
                 requestUrl = requestUrl,
                 body = body,
+                contentType = contentType,
                 authorizationHeader = buildAuthorizationHeader(privateKeyHex, upload.shareIdHex, index),
             )
         )
@@ -307,8 +310,8 @@ open class GarlandUploadExecutor(
                 .url(preparedUpload.requestUrl)
                 .header("X-SHA-256", upload.shareIdHex)
                 .header("X-Content-Length", preparedUpload.body.size.toString())
-                .header("X-Content-Type", "application/octet-stream")
-                .put(preparedUpload.body.toRequestBody("application/octet-stream".toMediaType()))
+                .header("X-Content-Type", preparedUpload.contentType)
+                .put(preparedUpload.body.toRequestBody(preparedUpload.contentType.toMediaType()))
             preparedUpload.authorizationHeader?.let { requestBuilder.header("Authorization", it) }
             val request = requestBuilder.build()
 
@@ -393,6 +396,13 @@ open class GarlandUploadExecutor(
         return "Nostr ${Base64.getUrlEncoder().withoutPadding().encodeToString(authJson.toByteArray(Charsets.UTF_8))}"
     }
 
+    private fun resolveUploadContentType(documentId: String, manifestMimeType: String?): String {
+        val manifestType = manifestMimeType?.trim()?.takeIf { it.isNotEmpty() }
+        if (manifestType != null) return manifestType
+        val recordType = store.readRecord(documentId)?.mimeType?.trim()?.takeIf { it.isNotEmpty() }
+        return recordType ?: "application/octet-stream"
+    }
+
     private fun parseUploadResponse(upload: UploadBody, responseBodyText: String): ResolvedUploadTarget? {
         if (responseBodyText.isBlank()) return null
         val payload = runCatching { JsonParser.parseString(responseBodyText) }.getOrNull()
@@ -412,6 +422,11 @@ open class GarlandUploadExecutor(
                     "Upload response from ${upload.serverUrl} returned invalid retrieval URL: ${it.message ?: retrievalUrl}"
                 )
             }
+        if (!isSameOrigin(upload.serverUrl, retrievalUrl)) {
+            throw IllegalStateException(
+                "Upload response from ${upload.serverUrl} returned cross-origin retrieval URL: $retrievalUrl"
+            )
+        }
         return ResolvedUploadTarget(upload.serverUrl, upload.shareIdHex, retrievalUrl)
     }
 
@@ -511,6 +526,13 @@ open class GarlandUploadExecutor(
         return hex.toString()
     }
 
+    private fun isSameOrigin(serverUrl: String, retrievalUrl: String): Boolean {
+        val server = runCatching { Request.Builder().url(serverUrl).build().url }.getOrNull() ?: return false
+        val retrieval = runCatching { Request.Builder().url(retrievalUrl).build().url }.getOrNull() ?: return false
+        return server.scheme == retrieval.scheme &&
+            server.host == retrieval.host &&
+            server.port == retrieval.port
+    }
     private fun JsonObject.optionalString(fieldName: String): String? {
         val field = get(fieldName) ?: return null
         if (!field.isJsonPrimitive || !field.asJsonPrimitive.isString) return null

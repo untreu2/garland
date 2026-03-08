@@ -3,6 +3,9 @@
 Android MVP for Garland storage with a native Android UI, Kotlin `DocumentsProvider`,
 and a Rust core for Garland-specific cryptography and packaging.
 
+This is a vibed app and it has not been audited at all. For the protocol design,
+see [garland-protocol](https://github.com/andotherstuff/garland-protocol).
+
 ## Scope
 
 This repo intentionally targets the smallest Android MVP that can:

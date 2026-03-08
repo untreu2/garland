@@ -1001,6 +1001,142 @@ class GarlandUploadExecutorTest {
     }
 
     @Test
+    fun usesManifestMimeTypeForUploadRequest() {
+        val tempDir = Files.createTempDirectory("garland-upload-content-type-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val harness = FakeGarlandNetworkHarness()
+
+        try {
+            harness.requireUploadAuthorization()
+            harness.requireUploadContentType("text/plain")
+            harness.enqueueUploadSuccess()
+            harness.enqueueUploadDescriptor(HELLO_SHARE_ID, "/blob/$HELLO_SHARE_ID")
+            harness.acceptRelayEvents()
+            val document = store.createDocument("note.txt", "text/plain")
+            store.saveUploadPlan(
+                document.documentId,
+                """
+                {
+                  "ok": true,
+                  "plan": {
+                    "manifest": {
+                      "document_id": "${document.documentId}",
+                      "mime_type": "text/plain",
+                      "size_bytes": 5,
+                      "sha256_hex": "$HELLO_SHARE_ID",
+                      "blocks": [
+                        {"index":0,"share_id_hex":"$HELLO_SHARE_ID","servers":["${harness.blossomBaseUrl()}"]}
+                      ]
+                    },
+                    "uploads": [
+                      {"server_url":"${harness.blossomBaseUrl()}","share_id_hex":"$HELLO_SHARE_ID","body_b64":"aGVsbG8="}
+                    ],
+                    "commit_event": {
+                      "id_hex":"event123",
+                      "pubkey_hex":"${"b".repeat(64)}",
+                      "created_at":1701907200,
+                      "kind":1097,
+                      "tags":[],
+                      "content":"manifest",
+                      "sig_hex":"${"c".repeat(128)}"
+                    }
+                  },
+                  "error": null
+                }
+                """.trimIndent(),
+            )
+            val client = OkHttpClient()
+            val executor = GarlandUploadExecutor(
+                store = store,
+                client = client,
+                relayPublisher = NostrRelayPublisher(client = client, ackTimeoutMillis = 250),
+                privateKeyProvider = { "deadbeef".repeat(8) },
+                authEventSigner = BlossomAuthEventSigner { _, shareIdHex, createdAt, expiration ->
+                    SignedRelayEvent(
+                        id = "a".repeat(64),
+                        pubkey = "b".repeat(64),
+                        createdAt = createdAt,
+                        kind = 24242,
+                        tags = listOf(
+                            listOf("t", "upload"),
+                            listOf("x", shareIdHex),
+                            listOf("expiration", expiration.toString()),
+                        ),
+                        content = "garland upload authorization",
+                        sig = "c".repeat(128),
+                    )
+                },
+            )
+
+            val result = executor.executeDocumentUpload(document.documentId, listOf(harness.relayWebSocketUrl()))
+
+            assertTrue(result.success)
+            assertEquals(listOf("text/plain"), harness.uploadContentTypes())
+
+            client.dispatcher.cancelAll()
+            client.dispatcher.executorService.shutdown()
+            client.connectionPool.evictAll()
+        } finally {
+            harness.close()
+        }
+    }
+
+    @Test
+    fun rejectsCrossOriginRetrievalUrlFromUploadResponse() {
+        val tempDir = Files.createTempDirectory("garland-upload-cross-origin-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("{\"url\":\"https://evil.example/blob/$HELLO_SHARE_ID\",\"sha256\":\"$HELLO_SHARE_ID\"}")
+        )
+        server.start()
+
+        try {
+            val document = store.createDocument("note.txt", "text/plain")
+            val uploadUrl = server.url("").toString().removeSuffix("/")
+            store.saveUploadPlan(
+                document.documentId,
+                """
+                {
+                  "ok": true,
+                  "plan": {
+                    "uploads": [
+                      {"server_url":"$uploadUrl","share_id_hex":"$HELLO_SHARE_ID","body_b64":"aGVsbG8="}
+                    ],
+                    "commit_event": {
+                      "id_hex":"event123",
+                      "pubkey_hex":"pubkey123",
+                      "created_at":1701907200,
+                      "kind":1097,
+                      "tags":[],
+                      "content":"manifest",
+                      "sig_hex":"sig123"
+                    }
+                  },
+                  "error": null
+                }
+                """.trimIndent()
+            )
+
+            val client = OkHttpClient()
+            val executor = GarlandUploadExecutor(store, client)
+            val result = executor.executeDocumentUpload(document.documentId, listOf("wss://relay.example"))
+
+            assertFalse(result.success)
+            assertEquals("upload-response-invalid", store.readRecord(document.documentId)?.uploadStatus)
+            assertTrue(result.message.contains("cross-origin retrieval URL"))
+
+            client.dispatcher.cancelAll()
+            client.dispatcher.executorService.shutdown()
+            client.connectionPool.evictAll()
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun explainsUnauthorizedUploadWhenServerRequiresBlossomAuth() {
         val tempDir = Files.createTempDirectory("garland-upload-unauthorized-test").toFile()
         val store = LocalDocumentStoreImpl(tempDir)
