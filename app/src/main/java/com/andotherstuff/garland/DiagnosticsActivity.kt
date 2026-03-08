@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.widget.Toast
 import android.view.View
@@ -11,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.andotherstuff.garland.databinding.ActivityDiagnosticsBinding
 import com.google.android.material.button.MaterialButton
 
@@ -45,10 +47,12 @@ class DiagnosticsActivity : AppCompatActivity() {
         )
         selectedDocumentId = state.selectedDocumentId
         title = state.title
+        bindStatusNarrative(state)
         binding.selectedDocumentText.text = state.selectedLabel
         binding.documentIdText.text = state.documentIdLabel
         binding.documentIdText.visibility = if (state.documentIdLabel.isNullOrBlank()) View.GONE else View.VISIBLE
         binding.diagnosticsOverviewText.text = state.overview
+        binding.diagnosticsNextStepsText.text = state.nextSteps.joinToString("\n") { "- $it" }
         bindDiagnosticSection(binding.diagnosticsUploadsLabel, binding.diagnosticsUploadsText, state.uploadsLabel, state.uploads)
         bindDiagnosticSection(binding.diagnosticsRelaysLabel, binding.diagnosticsRelaysText, state.relaysLabel, state.relays)
         bindDiagnosticSection(binding.diagnosticsHistoryLabel, binding.diagnosticsHistoryText, state.historyLabel, state.history)
@@ -62,6 +66,34 @@ class DiagnosticsActivity : AppCompatActivity() {
         binding.copyDiagnosticsButton.isEnabled = state.selectedDocumentId != null
         binding.copyDiagnosticsButton.tag = state.exportText
         binding.copyDocumentIdButton.isEnabled = state.selectedDocumentId != null
+    }
+
+    private fun bindStatusNarrative(state: DocumentDiagnosticsScreenState) {
+        binding.diagnosticsStatusChip.text = state.statusLabel
+        binding.diagnosticsHeadlineText.text = state.statusHeadline
+        binding.diagnosticsSummaryText.text = state.statusSummary
+
+        val backgroundColor = ContextCompat.getColor(this, statusBackgroundColor(state.statusTone))
+        val textColor = ContextCompat.getColor(this, statusTextColor(state.statusTone))
+        binding.diagnosticsStatusChip.backgroundTintList = ColorStateList.valueOf(backgroundColor)
+        binding.diagnosticsStatusChip.setTextColor(textColor)
+    }
+
+    private fun statusBackgroundColor(tone: String): Int {
+        return when (tone) {
+            "success" -> R.color.garland_leaf
+            "warning" -> R.color.garland_gold
+            "danger" -> R.color.garland_error
+            "active" -> R.color.garland_surface_alt
+            else -> R.color.garland_surface_alt
+        }
+    }
+
+    private fun statusTextColor(tone: String): Int {
+        return when (tone) {
+            "success", "warning", "danger" -> R.color.garland_bg
+            else -> R.color.garland_ink
+        }
     }
 
     private fun copyDiagnosticsReport() {

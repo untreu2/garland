@@ -54,6 +54,9 @@ class DocumentDiagnosticsScreenPresenterTest {
 
         assertEquals("doc-selected", state.selectedDocumentId)
         assertEquals("selected.txt", state.selectedLabel)
+        assertEquals("Relay attention", state.statusLabel)
+        assertEquals("The commit event did not reach every relay.", state.statusHeadline)
+        assertTrue(state.statusSummary.contains("Some shares uploaded"))
         assertTrue(state.overview.contains("Status: Relay published partial"))
         assertEquals("Uploads (1/1 ok)", state.uploadsLabel)
         assertTrue(state.uploads?.contains("blossom.one [OK] Uploaded share a1") == true)
@@ -65,6 +68,7 @@ class DocumentDiagnosticsScreenPresenterTest {
         assertEquals("Document ID: doc-selected", state.documentIdLabel)
         assertEquals("Troubleshooting", state.troubleshootingLabel)
         assertTrue(state.troubleshootingItems.contains("Retry relay publish after confirming relay connectivity and auth."))
+        assertTrue(state.nextSteps.contains("Retry relay publish after confirming relay connectivity and auth."))
         assertEquals(listOf("selected.txt", "other.txt"), state.documentOptions.map { it.label })
     }
 
@@ -91,6 +95,9 @@ class DocumentDiagnosticsScreenPresenterTest {
             readUploadPlan = { sampleUploadPlanJson(documentId = it) },
         )
 
+        assertEquals("Background work active", state.statusLabel)
+        assertEquals("Garland is still working on this document.", state.statusHeadline)
+        assertTrue(state.statusSummary.contains("wait"))
         assertEquals("Troubleshooting", state.troubleshootingLabel)
         assertTrue(state.troubleshootingItems.contains("Background work is still active. Refresh after the current worker finishes."))
         assertTrue(state.troubleshootingItems.contains("Retry upload after checking Blossom server reachability and payload health."))
@@ -108,6 +115,8 @@ class DocumentDiagnosticsScreenPresenterTest {
         assertEquals(null, state.selectedDocumentId)
         assertEquals("Diagnostics", state.title)
         assertEquals("No local Garland documents yet.", state.selectedLabel)
+        assertEquals("No document selected", state.statusLabel)
+        assertEquals("Nothing is broken right now because nothing is loaded yet.", state.statusHeadline)
         assertEquals("Select a document to inspect diagnostics.", state.overview)
         assertEquals(null, state.historyLabel)
         assertEquals("No local Garland documents yet.", state.exportText)

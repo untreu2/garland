@@ -29,7 +29,18 @@
         <item name="android:textStyle">bold</item>
     </style>
 
+    <style name="TextAppearance.Garland.HeroTitle" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/garland_ink</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
     <style name="TextAppearance.Garland.BodyMuted" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:textColor">@color/garland_muted</item>
+    </style>
+
+    <style name="TextAppearance.Garland.StatusChip" parent="TextAppearance.Material3.LabelLarge">
+        <item name="android:textColor">@color/garland_ink</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
     </style>
 </resources>

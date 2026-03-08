@@ -26,6 +26,11 @@ sha256 %6$s</string>
     <string name="diagnostics_copy_document_id_button">Copy ID</string>
     <string name="diagnostics_documents_label">Document diagnostics</string>
     <string name="diagnostics_history_label">Recent history</string>
+    <string name="diagnostics_next_steps_label">What to try next</string>
+    <string name="diagnostics_next_steps_placeholder">No next steps yet.</string>
+    <string name="diagnostics_status_placeholder">Status</string>
+    <string name="diagnostics_headline_placeholder">Garland diagnostics headline</string>
+    <string name="diagnostics_summary_placeholder">Garland diagnostics summary</string>
     <string name="diagnostics_troubleshooting_label">Troubleshooting</string>
     <string name="troubleshooting_actions_label">Troubleshooting actions</string>
     <string name="identity_section_label">Identity</string>
