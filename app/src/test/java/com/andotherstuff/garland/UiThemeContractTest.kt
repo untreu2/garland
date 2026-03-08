@@ -57,6 +57,8 @@ class UiThemeContractTest {
         assertTrue(diagnosticsLayout.contains("@+id/diagnosticsHeadlineText"))
         assertTrue(diagnosticsLayout.contains("@+id/diagnosticsSummaryText"))
         assertTrue(diagnosticsLayout.contains("@+id/diagnosticsNextStepsText"))
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsTroubleshootingSummaryText"))
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsEvidenceHintText"))
         assertTrue(diagnosticsLayout.contains("MaterialCardView"))
     }
 

@@ -23,7 +23,9 @@ data class DocumentDiagnosticsScreenState(
     val historyLabel: String?,
     val history: String?,
     val troubleshootingLabel: String?,
+    val troubleshootingSummary: String?,
     val troubleshootingItems: List<String>,
+    val evidenceHint: String?,
     val nextSteps: List<String>,
     val exportText: String,
     val documentOptions: List<DocumentDiagnosticsOption>,
@@ -41,6 +43,8 @@ object DocumentDiagnosticsScreenPresenter {
         val summary = selectedRecord?.let { GarlandPlanInspector.summarize(readUploadPlan(it.documentId)) }
         val sections = DocumentDiagnosticsFormatter.detailSections(selectedRecord, summary)
         val troubleshootingItems = selectedRecord?.let { troubleshootingItems(it, sections) }.orEmpty()
+        val troubleshootingSummary = selectedRecord?.let { troubleshootingSummary(it, sections) }
+        val evidenceHint = selectedRecord?.let { evidenceHint(it, sections) }
         val narrative = buildNarrative(selectedRecord)
         return DocumentDiagnosticsScreenState(
             title = selectedRecord?.displayName?.let { "Diagnostics for $it" } ?: "Diagnostics",
@@ -59,7 +63,9 @@ object DocumentDiagnosticsScreenPresenter {
             historyLabel = sections.historyLabel,
             history = sections.history,
             troubleshootingLabel = troubleshootingItems.takeIf { it.isNotEmpty() }?.let { "Troubleshooting" },
+            troubleshootingSummary = troubleshootingSummary,
             troubleshootingItems = troubleshootingItems,
+            evidenceHint = evidenceHint,
             nextSteps = troubleshootingItems,
             exportText = DocumentDiagnosticsFormatter.exportText(selectedRecord, summary),
             documentOptions = sortedRecords.map { record ->
@@ -175,5 +181,51 @@ object DocumentDiagnosticsScreenPresenter {
             items += "No active failure markers. Copy the report if behavior still looks wrong."
         }
         return items.distinct()
+    }
+
+    private fun troubleshootingSummary(
+        record: LocalDocumentRecord,
+        sections: DocumentDiagnosticsFormatter.DetailSections,
+    ): String {
+        return when {
+            record.uploadStatus in setOf("sync-queued", "sync-running", "restore-queued", "restore-running") -> {
+                "Garland is still running, so wait for the worker before trusting this screen."
+            }
+            sections.relaysLabel?.contains("failed", ignoreCase = true) == true -> {
+                "Relay delivery is the blocker right now."
+            }
+            sections.uploadsLabel?.contains("failed", ignoreCase = true) == true -> {
+                "Share upload is the blocker right now."
+            }
+            sections.history != null -> {
+                "The latest failure is captured below, so keep the evidence before you reproduce it."
+            }
+            else -> {
+                "No active failure markers are showing right now."
+            }
+        }
+    }
+
+    private fun evidenceHint(
+        record: LocalDocumentRecord,
+        sections: DocumentDiagnosticsFormatter.DetailSections,
+    ): String {
+        return when {
+            record.uploadStatus in setOf("sync-queued", "sync-running", "restore-queued", "restore-running") -> {
+                "Copy the report now if you need the last completed endpoint details before the worker overwrites them."
+            }
+            sections.relaysLabel?.contains("failed", ignoreCase = true) == true -> {
+                "Copy the report before retrying so you keep the failing relay trace."
+            }
+            sections.uploadsLabel?.contains("failed", ignoreCase = true) == true -> {
+                "Copy the report before retrying so you keep the failing upload trace."
+            }
+            sections.history != null -> {
+                "Copy the report if you need to compare the next attempt against this one."
+            }
+            else -> {
+                "Copy the report if the screen looks wrong and you want a snapshot for comparison."
+            }
+        }
     }
 }

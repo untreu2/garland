@@ -62,6 +62,8 @@ class DiagnosticsActivity : AppCompatActivity() {
             state.troubleshootingLabel,
             state.troubleshootingItems.takeIf { it.isNotEmpty() }?.joinToString("\n") { "- $it" },
         )
+        bindText(binding.diagnosticsTroubleshootingSummaryText, state.troubleshootingSummary)
+        bindText(binding.diagnosticsEvidenceHintText, state.evidenceHint)
         renderDocumentOptions(state.documentOptions)
         binding.copyDiagnosticsButton.isEnabled = state.selectedDocumentId != null
         binding.copyDiagnosticsButton.tag = state.exportText
@@ -142,6 +144,14 @@ class DiagnosticsActivity : AppCompatActivity() {
         textView.visibility = if (visible) View.VISIBLE else View.GONE
         if (visible) {
             labelView.text = label
+            textView.text = content
+        }
+    }
+
+    private fun bindText(textView: TextView, content: String?) {
+        val visible = !content.isNullOrBlank()
+        textView.visibility = if (visible) View.VISIBLE else View.GONE
+        if (visible) {
             textView.text = content
         }
     }

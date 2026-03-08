@@ -228,7 +228,23 @@
                     android:visibility="gone" />
 
                 <TextView
+                    android:id="@+id/diagnosticsTroubleshootingSummaryText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyStrong"
+                    android:visibility="gone" />
+
+                <TextView
                     android:id="@+id/diagnosticsTroubleshootingText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/diagnosticsEvidenceHintText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
