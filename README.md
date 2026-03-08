@@ -23,6 +23,9 @@ This repo intentionally targets the smallest Android MVP that can:
 - `DocumentsProvider` integration with recent document, search, path lookup, write, delete, restore-on-read, and image thumbnail support
 - WorkManager-backed background sync and restore with duplicate-job protection and retry classification for permanent vs transient failures
 - per-document upload and relay diagnostics preserved across queued and running status transitions
+- dedicated diagnostics reports now include recent per-document history and a copyable tester report
+- manifest validation now rejects duplicate or invalid server entries across upload and restore paths
+- provider MIME fallback naming now covers wildcard non-image creates such as `text/*` and `application/*`
 - Rust core for identity derivation, multi-block write planning, and block recovery
 
 ## Verified Status
@@ -36,7 +39,6 @@ This repo intentionally targets the smallest Android MVP that can:
 ## Alpha Release Gaps
 
 - run the Android instrumentation suite on a connected emulator or device as part of release verification
-- expand diagnostics beyond the current latest-result view if alpha testing needs longer per-document history
 - finish the connected-device and manual sign-off items in `docs/ALPHA_RELEASE_CHECKLIST.md`
 
 ## License

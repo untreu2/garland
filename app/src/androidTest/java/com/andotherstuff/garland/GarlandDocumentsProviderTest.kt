@@ -212,6 +212,28 @@ class GarlandDocumentsProviderTest {
     }
 
     @Test
+    fun wildcardTextMimeGetsTxtFallbackName() {
+        val rootDocumentId = queryRootDocumentId()
+        val documentUri = DocumentsContract.createDocument(
+            resolver,
+            documentUri(rootDocumentId),
+            "text/*",
+            "",
+        )!!
+
+        resolver.openOutputStream(documentUri, "w")!!.use { stream ->
+            stream.write("notes".toByteArray())
+        }
+
+        val documentId = DocumentsContract.getDocumentId(documentUri)
+        waitForStatus(documentId, "waiting-for-identity")
+
+        val record = store.readRecord(documentId)
+        assertEquals("Untitled.txt", record?.displayName)
+        assertEquals("text/*", record?.mimeType)
+    }
+
+    @Test
     fun appendWriteModeKeepsExistingProviderContent() {
         val rootDocumentId = queryRootDocumentId()
         val documentUri = DocumentsContract.createDocument(

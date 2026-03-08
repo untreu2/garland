@@ -65,4 +65,20 @@ class ProviderMimePolicyTest {
             ProviderMimePolicy.resolveDisplayName("draft.md", "text/plain"),
         )
     }
+
+    @Test
+    fun wildcardTextMimeGetsTxtFallbackName() {
+        assertEquals(
+            "Untitled.txt",
+            ProviderMimePolicy.resolveDisplayName("", "text/*"),
+        )
+    }
+
+    @Test
+    fun wildcardApplicationMimeGetsBinFallbackName() {
+        assertEquals(
+            "Untitled.bin",
+            ProviderMimePolicy.resolveDisplayName("", "application/*"),
+        )
+    }
 }

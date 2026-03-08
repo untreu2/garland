@@ -23,6 +23,9 @@ This file tracks the next integration wave after the current Garland MVP.
 - fake Blossom/relay harness coverage now exists in JVM tests and Android test sources
 - connected instrumentation is still pending because it has not been run on an emulator or device
 - `MainActivity` keeps a compact diagnostics summary and now opens a dedicated diagnostics screen for fuller per-document triage
+- the diagnostics screen now keeps recent per-document sync history and can copy a tester-facing report
+- manifest validation now rejects duplicate or invalid server entries and restore-side plan failures now surface structured diagnostics
+- provider MIME fallback naming now covers wildcard non-image creates such as `text/*` and `application/*`
 
 ## Alpha Blockers
 
@@ -30,16 +33,14 @@ This file tracks the next integration wave after the current Garland MVP.
     - run connected instrumentation for provider flow, worker flow, and diagnostics flow on an emulator or device
 
 2. Diagnostics UX
-    - make per-server and per-relay failures easier for testers to scan and export
-   - extend the dedicated diagnostics screen if alpha testing needs longer per-document history
+    - collect tester feedback on whether the new copyable report and recent-history view are enough on-device
 
 3. Provider and file handling polish
-   - exercise thumbnail behavior and provider contracts on-device
-   - add better MIME-aware handling beyond the current image-thumbnail path
+    - exercise thumbnail behavior and provider contracts on-device
+    - verify wildcard and non-image MIME handling on a real picker flow
 
 4. Packaging and manifest validation
-   - add stronger manifest validation for block ordering and completeness
-   - verify malformed plans fail cleanly across upload and restore paths
+    - verify the hardened malformed-plan cases against real device and worker flows
 
 ## Next Wave Priorities
 
@@ -53,12 +54,12 @@ This file tracks the next integration wave after the current Garland MVP.
    - execute provider, worker, and diagnostics instrumentation against the current MVP before more UI churn
 
 3. Diagnostics screen follow-through
-   - keep the new dedicated diagnostics view aligned with tester feedback
-   - add longer per-document history if the current latest-result view is not enough
+    - keep the dedicated diagnostics view aligned with tester feedback
+    - validate whether the new recent-history and copy-report path is enough for alpha sign-off
 
 4. Provider polish
-   - broaden MIME-aware behavior beyond images
-   - verify tree/document contract edges on real devices
+    - confirm wildcard and non-image MIME handling on a real device
+    - verify tree/document contract edges on real devices
 
 ## Suggested Build Order
 
@@ -92,11 +93,11 @@ This file tracks the next integration wave after the current Garland MVP.
 
 2. Extend diagnostics follow-through
     - keep the current summary in `MainActivity`
-    - add longer per-document history if alpha testing shows the dedicated screen needs it
+    - collect on-device feedback on the new dedicated history and copy-report flow
 
 3. Harden provider and manifest edges
-    - add MIME-aware handling beyond image thumbnails
-    - verify malformed or incomplete multi-block manifests fail cleanly
+    - verify wildcard MIME handling beyond image thumbnails on-device
+    - verify malformed or incomplete multi-block manifests fail cleanly on-device
 
 4. Work the alpha release checklist
     - run `automation/verify_alpha_no_device.sh`

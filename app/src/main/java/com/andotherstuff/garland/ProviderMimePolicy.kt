@@ -11,6 +11,10 @@ object ProviderMimePolicy {
         "text/markdown" to "md",
         "text/plain" to "txt",
     )
+    private val wildcardExtensions = mapOf(
+        "application" to "bin",
+        "text" to "txt",
+    )
 
     fun supportsThumbnail(mimeType: String): Boolean = mimeType.startsWith("image/", ignoreCase = true)
 
@@ -36,7 +40,13 @@ object ProviderMimePolicy {
             return baseName
         }
 
-        val extension = preferredExtensions[mimeType.lowercase()] ?: return baseName
+        val normalizedMimeType = mimeType.lowercase()
+        val extension = preferredExtensions[normalizedMimeType]
+            ?: normalizedMimeType
+                .takeIf { it.endsWith("/*") }
+                ?.substringBefore('/')
+                ?.let(wildcardExtensions::get)
+            ?: return baseName
         return "$baseName.$extension"
     }
 

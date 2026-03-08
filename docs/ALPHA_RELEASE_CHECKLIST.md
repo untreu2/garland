@@ -7,6 +7,9 @@ This checklist freezes the command path and evidence needed for alpha sign-off.
 - [x] Run `automation/verify_alpha_no_device.sh`
 - [x] Confirm the fake Blossom/relay harness covers upload, relay publish, and restore fallback paths in JVM tests
 - [x] Confirm Android instrumentation sources compile with the fake harness via `./gradlew compileDebugAndroidTestKotlin`
+- [x] Confirm restore-side malformed manifest failures now surface structured diagnostics in JVM tests
+- [x] Confirm diagnostics reports now include recent per-document history and copyable export text in JVM tests
+- [x] Confirm wildcard non-image MIME fallback naming is covered in JVM and Android test sources
 
 Evidence to capture:
 
@@ -30,14 +33,15 @@ Evidence to capture:
 ## 3. Manual alpha checks
 
 - [ ] Upload a small text file and confirm relay publish status reaches the diagnostics screen
-- [ ] Retry a failed upload and confirm diagnostics remain readable after the status transition
+- [ ] Retry a failed upload and confirm diagnostics remain readable after the status transition, including recent history
 - [ ] Restore a shared document through the provider path and confirm the file opens correctly
 - [ ] Verify image thumbnail behavior from the Android document picker
-- [ ] Verify MIME handling for at least one non-image file from the document picker
+- [ ] Verify MIME handling for at least one wildcard or non-image file from the document picker
 
 Evidence to capture:
 
 - screenshots from the diagnostics screen
+- copied diagnostics report text
 - note of the device build fingerprint
 - short notes for provider open, recent, search, and delete checks
 
