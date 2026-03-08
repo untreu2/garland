@@ -2,6 +2,7 @@
 
 ## Verified in this repo
 
+- release target is `v0.0.1-alpha`
 - No-device alpha verification passes with `automation/verify_alpha_no_device.sh`
 - Android unit tests pass with `./gradlew testDebugUnitTest`
 - Android JVM coverage report generates with `./gradlew jacocoDebugUnitTestReport`

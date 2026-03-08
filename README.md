@@ -30,6 +30,7 @@ This repo intentionally targets the smallest Android MVP that can:
 
 ## Verified Status
 
+- release target is `v0.0.1-alpha`
 - `automation/verify_alpha_no_device.sh` passes and freezes the repo-side alpha sign-off path
 - `./gradlew testDebugUnitTest` passes for the Android unit-test suite
 - `./gradlew jacocoDebugUnitTestReport` generates the Android JVM coverage report

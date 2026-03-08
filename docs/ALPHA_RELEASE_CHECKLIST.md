@@ -2,6 +2,8 @@
 
 This checklist freezes the command path and evidence needed for alpha sign-off.
 
+Release target: `v0.0.1-alpha`
+
 ## 1. No-device verification
 
 - [x] Run `automation/verify_alpha_no_device.sh`
