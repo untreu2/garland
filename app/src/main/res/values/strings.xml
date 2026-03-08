@@ -33,6 +33,13 @@ sha256 %6$s</string>
     <string name="diagnostics_summary_placeholder">Garland diagnostics summary</string>
     <string name="diagnostics_troubleshooting_label">Troubleshooting</string>
     <string name="troubleshooting_actions_label">Troubleshooting actions</string>
+    <string name="action_group_quick_checks_label">Quick checks</string>
+    <string name="action_group_quick_checks_note">Refresh the current view, queue pending sync work, or open the deeper report.</string>
+    <string name="action_group_document_actions_label">Selected document actions</string>
+    <string name="action_group_document_actions_note">These controls act on the highlighted document and are safe to retry.</string>
+    <string name="action_group_danger_zone_label">Danger zone</string>
+    <string name="action_group_danger_zone_note">Delete removes the local Garland record and payload from this device.</string>
+    <string name="action_safety_note">Safe order: inspect diagnostics, retry or restore if needed, delete only when you want to discard the local copy.</string>
     <string name="identity_section_label">Identity</string>
     <string name="network_section_label">Network defaults</string>
     <string name="local_documents_label">Local Garland documents</string>

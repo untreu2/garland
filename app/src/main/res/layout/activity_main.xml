@@ -180,7 +180,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/openDiagnosticsButton"
-                    style="@style/Widget.Garland.ActionButton"
+                    style="@style/Widget.Garland.SubtleButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -206,6 +206,28 @@
                     android:text="@string/troubleshooting_actions_label"
                     android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow" />
 
+                <TextView
+                    android:id="@+id/actionSafetyNoteText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/action_safety_note"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/action_group_quick_checks_label"
+                    android:textAppearance="@style/TextAppearance.Garland.SectionTitle" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/action_group_quick_checks_note"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -230,6 +252,20 @@
                         android:text="@string/sync_documents_button" />
                 </LinearLayout>
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/action_group_document_actions_label"
+                    android:textAppearance="@style/TextAppearance.Garland.SectionTitle" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/action_group_document_actions_note"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -245,22 +281,36 @@
                         android:text="@string/retry_upload_button" />
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/deleteDocumentButton"
+                        android:id="@+id/restoreDocumentButton"
                         style="@style/Widget.Garland.ActionButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:layout_weight="1"
-                        android:text="@string/delete_document_button" />
+                        android:text="@string/restore_document_button" />
                 </LinearLayout>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/restoreDocumentButton"
-                    style="@style/Widget.Garland.ActionButton"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/action_group_danger_zone_label"
+                    android:textAppearance="@style/TextAppearance.Garland.SectionTitle" />
+
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/restore_document_button" />
+                    android:layout_marginTop="4dp"
+                    android:text="@string/action_group_danger_zone_note"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/deleteDocumentButton"
+                    style="@style/Widget.Garland.DangerButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/delete_document_button" />
 
                 <TextView
                     android:layout_width="match_parent"

@@ -13,6 +13,18 @@
         <item name="backgroundTint">@color/garland_surface_alt</item>
     </style>
 
+    <style name="Widget.Garland.SubtleButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/garland_surface_strong</item>
+        <item name="android:textColor">@color/garland_muted</item>
+        <item name="backgroundTint">@color/garland_surface_soft</item>
+    </style>
+
+    <style name="Widget.Garland.DangerButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/garland_error</item>
+        <item name="android:textColor">@color/garland_error</item>
+        <item name="backgroundTint">@color/garland_danger_surface</item>
+    </style>
+
     <style name="Widget.Garland.PrimaryButton" parent="Widget.Material3.Button">
         <item name="backgroundTint">@color/garland_leaf</item>
         <item name="android:textColor">@color/garland_bg</item>
@@ -36,6 +48,10 @@
 
     <style name="TextAppearance.Garland.BodyMuted" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:textColor">@color/garland_muted</item>
+    </style>
+
+    <style name="TextAppearance.Garland.BodyStrong" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/garland_ink</item>
     </style>
 
     <style name="TextAppearance.Garland.StatusChip" parent="TextAppearance.Material3.LabelLarge">

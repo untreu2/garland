@@ -29,6 +29,11 @@ class UiThemeContractTest {
 
         assertTrue(mainLayout.contains("com.google.android.material.card.MaterialCardView"))
         assertTrue(mainLayout.contains("@string/troubleshooting_actions_label"))
+        assertTrue(mainLayout.contains("@string/action_group_quick_checks_label"))
+        assertTrue(mainLayout.contains("@string/action_group_document_actions_label"))
+        assertTrue(mainLayout.contains("@string/action_group_danger_zone_label"))
+        assertTrue(mainLayout.contains("@+id/actionSafetyNoteText"))
+        assertTrue(mainLayout.contains("@style/Widget.Garland.DangerButton"))
         assertTrue(mainLayout.contains("@+id/mainStatusChip"))
         assertTrue(mainLayout.contains("@+id/mainStatusHeadlineText"))
         assertTrue(mainLayout.contains("@+id/mainStatusSummaryText"))
