@@ -121,8 +121,9 @@ class GarlandDocumentsProvider : DocumentsProvider() {
             throw FileNotFoundException("Directories are not supported")
         }
 
-        val resolvedDisplayName = displayName ?: "Untitled"
-        val resolvedMimeType = ProviderMimePolicy.resolveMimeType(mimeType, resolvedDisplayName)
+        val requestedDisplayName = displayName.orEmpty()
+        val resolvedMimeType = ProviderMimePolicy.resolveMimeType(mimeType, requestedDisplayName)
+        val resolvedDisplayName = ProviderMimePolicy.resolveDisplayName(displayName, resolvedMimeType)
         val record = store.createDocument(
             displayName = resolvedDisplayName,
             mimeType = resolvedMimeType

@@ -178,6 +178,40 @@ class GarlandDocumentsProviderTest {
     }
 
     @Test
+    fun blankDisplayNameGetsMimeAwareFallbackName() {
+        val rootDocumentId = queryRootDocumentId()
+        val documentUri = DocumentsContract.createDocument(
+            resolver,
+            documentUri(rootDocumentId),
+            "application/json",
+            "",
+        )!!
+
+        resolver.openOutputStream(documentUri, "w")!!.use { stream ->
+            stream.write("{}".toByteArray())
+        }
+
+        val documentId = DocumentsContract.getDocumentId(documentUri)
+        waitForStatus(documentId, "waiting-for-identity")
+
+        val record = store.readRecord(documentId)
+        assertEquals("Untitled.json", record?.displayName)
+        assertEquals("application/json", record?.mimeType)
+
+        resolver.query(documentUri, null, null, null, null)!!.use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(
+                "Untitled.json [waiting-for-identity]",
+                cursor.getString(cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME))
+            )
+            assertEquals(
+                "application/json",
+                cursor.getString(cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE))
+            )
+        }
+    }
+
+    @Test
     fun appendWriteModeKeepsExistingProviderContent() {
         val rootDocumentId = queryRootDocumentId()
         val documentUri = DocumentsContract.createDocument(

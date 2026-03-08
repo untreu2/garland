@@ -41,4 +41,28 @@ class ProviderMimePolicyTest {
     fun imageMimeTypesAdvertiseThumbnailSupport() {
         assertTrue(ProviderMimePolicy.supportsThumbnail("image/png"))
     }
+
+    @Test
+    fun blankDisplayNameGetsKnownExtensionFromMimeType() {
+        assertEquals(
+            "Untitled.json",
+            ProviderMimePolicy.resolveDisplayName("", "application/json"),
+        )
+    }
+
+    @Test
+    fun extensionlessDisplayNameGetsKnownExtensionFromMimeType() {
+        assertEquals(
+            "notes.txt",
+            ProviderMimePolicy.resolveDisplayName("notes", "text/plain"),
+        )
+    }
+
+    @Test
+    fun existingDisplayNameExtensionWinsOverMimeSuggestion() {
+        assertEquals(
+            "draft.md",
+            ProviderMimePolicy.resolveDisplayName("draft.md", "text/plain"),
+        )
+    }
 }
