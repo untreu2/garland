@@ -70,6 +70,15 @@ open class GarlandUploadExecutor(
             ?: return UploadExecutionResult(false, 0, 0, false, UNREADABLE_UPLOAD_PLAN_MESSAGE).also {
                 storeUploadPlanFailure(documentId, planDiagnostic("plan.uploads", "missing", it.message), it.message)
             }
+        val manifestFailure = GarlandManifestValidator.validateForUpload(
+            manifest = response.plan.manifest?.toValidationInfo(),
+            uploads = uploads.map { GarlandUploadInfo(serverUrl = it.serverUrl, shareIdHex = it.shareIdHex) },
+        )
+        if (manifestFailure != null) {
+            return UploadExecutionResult(false, 0, 0, false, manifestFailure.message).also {
+                storeUploadPlanFailure(documentId, planDiagnostic(manifestFailure.field, manifestFailure.status, manifestFailure.message), manifestFailure.message)
+            }
+        }
         val preparedUploads = uploads.mapIndexed { index, upload ->
             val prepared = prepareUploadRequest(upload, index + 1)
             if (prepared.errorMessage != null) {
@@ -255,9 +264,40 @@ private data class WritePlanEnvelope(
 )
 
 private data class PreparedPlan(
+    val manifest: UploadManifestEnvelope?,
     val uploads: List<UploadBody>?,
     @SerializedName("commit_event") val commitEvent: SignedRelayEvent?,
 )
+
+private data class UploadManifestEnvelope(
+    @SerializedName("document_id") val documentId: String?,
+    @SerializedName("mime_type") val mimeType: String?,
+    @SerializedName("size_bytes") val sizeBytes: Long?,
+    @SerializedName("sha256_hex") val sha256Hex: String?,
+    val blocks: List<UploadManifestBlockEnvelope>?,
+)
+
+private data class UploadManifestBlockEnvelope(
+    val index: Int?,
+    @SerializedName("share_id_hex") val shareIdHex: String?,
+    val servers: List<String>?,
+)
+
+private fun UploadManifestEnvelope.toValidationInfo(): GarlandManifestInfo {
+    return GarlandManifestInfo(
+        documentId = documentId,
+        mimeType = mimeType,
+        sizeBytes = sizeBytes,
+        sha256Hex = sha256Hex,
+        blocks = blocks?.map { block ->
+            GarlandManifestBlockInfo(
+                index = block.index,
+                shareIdHex = block.shareIdHex,
+                servers = block.servers,
+            )
+        },
+    )
+}
 
 private data class UploadBody(
     @SerializedName("server_url") val serverUrl: String,

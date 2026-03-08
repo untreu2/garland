@@ -245,6 +245,118 @@ class GarlandUploadExecutorTest {
     }
 
     @Test
+    fun marksUploadPlanFailureWhenManifestBlockIndexesSkipAhead() {
+        val tempDir = Files.createTempDirectory("garland-upload-manifest-gap-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val document = store.createDocument("note.txt", "text/plain")
+        store.saveUploadPlan(
+            document.documentId,
+            """
+            {
+              "ok": true,
+              "plan": {
+                "manifest": {
+                  "document_id": "doc123",
+                  "mime_type": "text/plain",
+                  "size_bytes": 5,
+                  "sha256_hex": "abc123",
+                  "blocks": [
+                    {
+                      "index": 0,
+                      "share_id_hex": "a1",
+                      "servers": ["https://server.example"]
+                    },
+                    {
+                      "index": 2,
+                      "share_id_hex": "b2",
+                      "servers": ["https://server.example"]
+                    }
+                  ]
+                },
+                "uploads": [
+                  {"server_url":"https://server.example","share_id_hex":"a1","body_b64":"aGVsbG8="},
+                  {"server_url":"https://server.example","share_id_hex":"b2","body_b64":"d29ybGQ="}
+                ],
+                "commit_event": {
+                  "id_hex":"event123",
+                  "pubkey_hex":"pubkey123",
+                  "created_at":1701907200,
+                  "kind":1097,
+                  "tags":[],
+                  "content":"manifest",
+                  "sig_hex":"sig123"
+                }
+              },
+              "error": null
+            }
+            """.trimIndent()
+        )
+        val executor = GarlandUploadExecutor(store)
+
+        val result = executor.executeDocumentUpload(document.documentId, listOf("wss://relay.example"))
+
+        assertFalse(result.success)
+        assertEquals("upload-plan-failed", store.readRecord(document.documentId)?.uploadStatus)
+        assertEquals("Manifest block indexes must start at 0 and stay contiguous", store.readRecord(document.documentId)?.lastSyncMessage)
+        val diagnostics = DocumentSyncDiagnosticsCodec.decode(store.readRecord(document.documentId)?.lastSyncDetailsJson)
+        assertEquals("plan.manifest.blocks[1].index", diagnostics?.plan?.first()?.field)
+        assertEquals("invalid", diagnostics?.plan?.first()?.status)
+    }
+
+    @Test
+    fun marksUploadPlanFailureWhenManifestBlockHasNoMatchingUploads() {
+        val tempDir = Files.createTempDirectory("garland-upload-manifest-mismatch-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val document = store.createDocument("note.txt", "text/plain")
+        store.saveUploadPlan(
+            document.documentId,
+            """
+            {
+              "ok": true,
+              "plan": {
+                "manifest": {
+                  "document_id": "doc123",
+                  "mime_type": "text/plain",
+                  "size_bytes": 5,
+                  "sha256_hex": "abc123",
+                  "blocks": [
+                    {
+                      "index": 0,
+                      "share_id_hex": "a1",
+                      "servers": ["https://server.example"]
+                    }
+                  ]
+                },
+                "uploads": [
+                  {"server_url":"https://server.example","share_id_hex":"b2","body_b64":"aGVsbG8="}
+                ],
+                "commit_event": {
+                  "id_hex":"event123",
+                  "pubkey_hex":"pubkey123",
+                  "created_at":1701907200,
+                  "kind":1097,
+                  "tags":[],
+                  "content":"manifest",
+                  "sig_hex":"sig123"
+                }
+              },
+              "error": null
+            }
+            """.trimIndent()
+        )
+        val executor = GarlandUploadExecutor(store)
+
+        val result = executor.executeDocumentUpload(document.documentId, listOf("wss://relay.example"))
+
+        assertFalse(result.success)
+        assertEquals("upload-plan-failed", store.readRecord(document.documentId)?.uploadStatus)
+        assertEquals("Manifest block 0 has no matching upload entries", store.readRecord(document.documentId)?.lastSyncMessage)
+        val diagnostics = DocumentSyncDiagnosticsCodec.decode(store.readRecord(document.documentId)?.lastSyncDetailsJson)
+        assertEquals("plan.manifest.blocks[0].share_id_hex", diagnostics?.plan?.first()?.field)
+        assertEquals("invalid", diagnostics?.plan?.first()?.status)
+    }
+
+    @Test
     fun marksUploadPlanFailureWhenCommitEventIsMissing() {
         val tempDir = Files.createTempDirectory("garland-upload-missing-commit-test").toFile()
         val store = LocalDocumentStoreImpl(tempDir)
