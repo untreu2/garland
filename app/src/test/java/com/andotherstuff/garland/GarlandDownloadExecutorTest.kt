@@ -60,6 +60,68 @@ class GarlandDownloadExecutorTest {
     }
 
     @Test
+    fun marksRestoreAsFailedWhenUploadPlanJsonIsMalformed() {
+        val tempDir = Files.createTempDirectory("garland-download-invalid-plan-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val document = store.createDocument("note.txt", "text/plain")
+        store.saveUploadPlan(document.documentId, "{not-json")
+        val executor = GarlandDownloadExecutor(store = store, recoverBlock = { error("should not recover") })
+
+        val result = executor.restoreDocument(document.documentId, "deadbeef")
+
+        assertFalse(result.success)
+        assertEquals("Invalid upload plan", result.message)
+        assertEquals("download-failed", store.readRecord(document.documentId)?.uploadStatus)
+        assertEquals("Invalid upload plan", store.readRecord(document.documentId)?.lastSyncMessage)
+    }
+
+    @Test
+    fun marksRestoreAsFailedWhenRecoveryJsonIsMalformed() {
+        val tempDir = Files.createTempDirectory("garland-download-invalid-recovery-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setResponseCode(200).setBody("encrypted-share"))
+        server.start()
+
+        try {
+            val document = store.createDocument("note.txt", "text/plain")
+            val serverUrl = server.url("").toString().removeSuffix("/")
+            store.saveUploadPlan(
+                document.documentId,
+                """
+                {
+                  "plan": {
+                    "manifest": {
+                      "document_id": "doc123",
+                      "blocks": [
+                        {
+                          "index": 0,
+                          "share_id_hex": "share123",
+                          "servers": ["$serverUrl"]
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            )
+            val executor = GarlandDownloadExecutor(
+                store = store,
+                recoverBlock = { "{not-json" },
+            )
+
+            val result = executor.restoreDocument(document.documentId, "deadbeef")
+
+            assertFalse(result.success)
+            assertEquals("Invalid recovery response", result.message)
+            assertEquals("download-failed", store.readRecord(document.documentId)?.uploadStatus)
+            assertEquals("Invalid recovery response", store.readRecord(document.documentId)?.lastSyncMessage)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun restoresDocumentFromStoredManifest() {
         val tempDir = Files.createTempDirectory("garland-download-test").toFile()
         val store = LocalDocumentStoreImpl(tempDir)

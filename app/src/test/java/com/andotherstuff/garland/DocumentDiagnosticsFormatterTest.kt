@@ -42,7 +42,9 @@ class DocumentDiagnosticsFormatterTest {
         val label = DocumentDiagnosticsFormatter.listLabel(record, summary, isSelected = true)
 
         assertTrue(label.contains("* note.txt [Relay published partial]"))
-        assertTrue(label.contains("blocks 2 - servers 3 - upload fail 1/2 - relay fail 1/2"))
+        assertTrue(label.contains("blocks 2 - servers 3"))
+        assertTrue(label.contains("upload fail 1/2 (blossom.two: HTTP 500)"))
+        assertTrue(label.contains("relay fail 1/2 (relay.two: timeout)"))
     }
 
     @Test
@@ -54,12 +56,69 @@ class DocumentDiagnosticsFormatterTest {
             sizeBytes = 42,
             updatedAt = 123,
             uploadStatus = "relay-published-partial",
-            lastSyncMessage = "relay one ok\nrelay two timeout",
+            lastSyncMessage = "Sync worker paused for retry\nwaiting for network",
         )
 
         val label = DocumentDiagnosticsFormatter.listLabel(record, summary = null, isSelected = false)
 
-        assertTrue(label.contains("relay one ok relay two timeout"))
+        assertTrue(label.contains("Sync worker paused for retry waiting for network"))
+    }
+
+    @Test
+    fun buildsLegacyRelayFailureSummaryWhenStructuredDiagnosticsAreMissing() {
+        val record = LocalDocumentRecord(
+            documentId = "doc123",
+            displayName = "note.txt",
+            mimeType = "text/plain",
+            sizeBytes = 42,
+            updatedAt = 123,
+            uploadStatus = "relay-published-partial",
+            lastSyncMessage = "Published to 1/2 relays; failed: wss://relay.two (timeout)",
+        )
+
+        val label = DocumentDiagnosticsFormatter.listLabel(record, summary = null, isSelected = false)
+
+        assertTrue(label.contains("relay fail 1/2 (relay.two: timeout)"))
+    }
+
+    @Test
+    fun stripsUnexpectedRelaySchemesFromLegacyFailureSummaries() {
+        val record = LocalDocumentRecord(
+            documentId = "doc123",
+            displayName = "note.txt",
+            mimeType = "text/plain",
+            sizeBytes = 42,
+            updatedAt = 123,
+            uploadStatus = "relay-publish-failed",
+            lastSyncMessage = "Published to 0/1 relays; failed: ftp://relay.example (Invalid relay URL: Expected URL scheme 'ws' or 'wss' but was 'ftp')",
+        )
+
+        val label = DocumentDiagnosticsFormatter.listLabel(record, summary = null, isSelected = false)
+        val sections = DocumentDiagnosticsFormatter.detailSections(record, summary = null)
+
+        assertTrue(label.contains("relay fail 1/1 (relay.example:"))
+        assertTrue(label.contains("Invalid relay URL"))
+        assertEquals("Relays (1 failed)", sections.relaysLabel)
+        assertTrue(sections.relays?.contains("relay.example") == true)
+        assertTrue(sections.relays?.contains("Invalid relay URL") == true)
+        assertTrue(sections.relays?.contains("ftp://") == false)
+    }
+
+    @Test
+    fun buildsLegacyUploadFailureSummaryWhenStructuredDiagnosticsAreMissing() {
+        val record = LocalDocumentRecord(
+            documentId = "doc123",
+            displayName = "note.txt",
+            mimeType = "text/plain",
+            sizeBytes = 42,
+            updatedAt = 123,
+            uploadStatus = "upload-http-500",
+            lastSyncMessage = "Upload failed on https://blossom.two with HTTP 500",
+        )
+
+        val label = DocumentDiagnosticsFormatter.listLabel(record, summary = null, isSelected = false)
+
+        assertTrue(label.contains("upload fail 1/1 (blossom.two: HTTP 500)"))
     }
 
     @Test
@@ -265,6 +324,39 @@ class DocumentDiagnosticsFormatterTest {
     }
 
     @Test
+    fun stripsUnexpectedSchemesFromStructuredRelayDiagnostics() {
+        val diagnosticsJson = DocumentSyncDiagnosticsCodec.encode(
+            DocumentSyncDiagnostics(
+                relays = listOf(
+                    DocumentEndpointDiagnostic(
+                        "ftp://relay.example",
+                        "failed",
+                        "Invalid relay URL: Expected URL scheme 'ws' or 'wss' but was 'ftp'",
+                    ),
+                ),
+            )
+        )
+        val record = LocalDocumentRecord(
+            documentId = "doc123",
+            displayName = "note.txt",
+            mimeType = "text/plain",
+            sizeBytes = 42,
+            updatedAt = 123,
+            uploadStatus = "relay-publish-failed",
+            lastSyncMessage = "Published to 0/1 relays; failed: ftp://relay.example (Invalid relay URL: Expected URL scheme 'ws' or 'wss' but was 'ftp')",
+            lastSyncDetailsJson = diagnosticsJson,
+        )
+
+        val sections = DocumentDiagnosticsFormatter.detailSections(record, summary = null)
+
+        assertEquals("Relays (1/1 failed)", sections.relaysLabel)
+        assertEquals(
+            "- relay.example [Failed] Invalid relay URL: Expected URL scheme 'ws' or 'wss' but was 'ftp'",
+            sections.relays,
+        )
+    }
+
+    @Test
     fun buildsRelayFailureSectionFromLegacyResultMessage() {
         val record = LocalDocumentRecord(
             documentId = "doc123",
@@ -306,7 +398,7 @@ class DocumentDiagnosticsFormatterTest {
         val sections = DocumentDiagnosticsFormatter.detailSections(record, summary)
 
         assertEquals("Uploads (1 failed)", sections.uploadsLabel)
-        assertEquals("- blossom.two with HTTP 500", sections.uploads)
+        assertEquals("- blossom.two (HTTP 500)", sections.uploads)
     }
 
     @Test

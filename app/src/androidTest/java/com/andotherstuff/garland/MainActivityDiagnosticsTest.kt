@@ -75,6 +75,40 @@ class MainActivityDiagnosticsTest {
     }
 
     @Test
+    fun showsFirstFailingEndpointsInDocumentListSummary() {
+        val diagnosticsJson = DocumentSyncDiagnosticsCodec.encode(
+            DocumentSyncDiagnostics(
+                uploads = listOf(
+                    DocumentEndpointDiagnostic("https://blossom.one", "ok", "Uploaded share a1"),
+                    DocumentEndpointDiagnostic("https://blossom.two", "failed", "HTTP 500"),
+                ),
+                relays = listOf(
+                    DocumentEndpointDiagnostic("wss://relay.one", "ok", "Relay accepted commit event"),
+                    DocumentEndpointDiagnostic("wss://relay.two", "failed", "timeout"),
+                ),
+            )
+        )
+        val document = store.upsertPreparedDocument(
+            documentId = "doc-list-summary",
+            displayName = "list-summary-note.txt",
+            mimeType = "text/plain",
+            content = "hello world".toByteArray(),
+            uploadPlanJson = sampleUploadPlanJson(documentId = "doc-list-summary"),
+        )
+        store.updateUploadDiagnostics(
+            documentId = document.documentId,
+            status = "relay-published-partial",
+            message = "Published to 1/2 relays; failed: wss://relay.two (timeout)",
+            diagnosticsJson = diagnosticsJson,
+        )
+
+        ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withText(containsString("upload fail 1/2 (blossom.two: HTTP 500)"))).check(matches(isDisplayed()))
+            onView(withText(containsString("relay fail 1/2 (relay.two: timeout)"))).check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
     fun showsReadableStructuredUploadHttpStatusInDiagnostics() {
         val diagnosticsJson = DocumentSyncDiagnosticsCodec.encode(
             DocumentSyncDiagnostics(
@@ -167,7 +201,7 @@ class MainActivityDiagnosticsTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             onView(withId(R.id.activeDocumentText)).check(matches(withText(containsString("legacy-upload-note.txt"))))
             onView(withId(R.id.activeDocumentUploadsLabel)).check(matches(withText("Uploads (1 failed)")))
-            onView(withId(R.id.activeDocumentUploadsText)).check(matches(withText(containsString("blossom.two with HTTP 500"))))
+            onView(withId(R.id.activeDocumentUploadsText)).check(matches(withText(containsString("blossom.two (HTTP 500)"))))
         }
     }
 

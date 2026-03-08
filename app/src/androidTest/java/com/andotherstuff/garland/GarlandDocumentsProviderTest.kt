@@ -2,6 +2,7 @@ package com.andotherstuff.garland
 
 import android.net.Uri
 import android.database.ContentObserver
+import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.os.Handler
 import android.os.Looper
@@ -145,6 +146,38 @@ class GarlandDocumentsProviderTest {
     }
 
     @Test
+    fun wildcardMimeTypeUsesDisplayNameExtensionForProviderMetadata() {
+        val rootDocumentId = queryRootDocumentId()
+        val imageUri = DocumentsContract.createDocument(
+            resolver,
+            documentUri(rootDocumentId),
+            "image/*",
+            "wildcard-derived.png"
+        )!!
+
+        resolver.openOutputStream(imageUri, "w")!!.use { stream ->
+            stream.write(PNG_1X1_BYTES)
+        }
+
+        val imageDocumentId = DocumentsContract.getDocumentId(imageUri)
+        waitForStatus(imageDocumentId, "waiting-for-identity")
+
+        resolver.query(imageUri, null, null, null, null)!!.use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(
+                "image/png",
+                cursor.getString(cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE))
+            )
+            val flags = cursor.getInt(cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_FLAGS))
+            assertTrue(flags and DocumentsContract.Document.FLAG_SUPPORTS_THUMBNAIL != 0)
+        }
+
+        val thumbnail = resolver.loadThumbnail(imageUri, Size(32, 32), null)
+        assertEquals(1, thumbnail.width)
+        assertEquals(1, thumbnail.height)
+    }
+
+    @Test
     fun appendWriteModeKeepsExistingProviderContent() {
         val rootDocumentId = queryRootDocumentId()
         val documentUri = DocumentsContract.createDocument(
@@ -173,6 +206,127 @@ class GarlandDocumentsProviderTest {
                 "alpha beta".toByteArray().size.toLong(),
                 cursor.getLong(cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_SIZE))
             )
+        }
+    }
+
+    @Test
+    fun appendWriteRestoresMissingLocalContentBeforeAppending() {
+        val identity = JSONObject(
+            NativeBridge.deriveIdentity(
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                ""
+            )
+        )
+        assertTrue(identity.optBoolean("ok"))
+        val privateKeyHex = identity.getString("private_key_hex")
+        GarlandSessionStore(targetContext).savePrivateKeyHex(privateKeyHex)
+
+        val restoredText = "restored through provider"
+        val appendedText = " + local append"
+        TestHttpFileServer(restoredText.toByteArray()).use { server ->
+            val requestJson = GarlandConfig.buildPrepareWriteRequestJson(
+                privateKeyHex = privateKeyHex,
+                displayName = "append-restore-note.txt",
+                mimeType = "text/plain",
+                content = restoredText.toByteArray(),
+                blossomServers = listOf(server.baseUrl),
+                createdAt = System.currentTimeMillis() / 1000,
+            )
+            val response = JSONObject(NativeBridge.prepareSingleBlockWrite(requestJson))
+            assertTrue(response.optBoolean("ok"))
+            val plan = response.getJSONObject("plan")
+            val documentId = plan.getString("document_id")
+            val upload = plan.getJSONArray("uploads").getJSONObject(0)
+            val encryptedShare = Base64.getDecoder().decode(upload.getString("body_b64"))
+
+            server.enqueue(encryptedShare)
+            store.upsertPreparedDocument(
+                documentId = documentId,
+                displayName = "append-restore-note.txt",
+                mimeType = "text/plain",
+                content = ByteArray(0),
+                uploadPlanJson = response.toString(),
+            )
+
+            val documentUri = documentUri(documentId)
+            resolver.openOutputStream(documentUri, "wa")!!.use { stream ->
+                stream.write(appendedText.toByteArray())
+            }
+
+            waitForStatus(documentId, "upload-plan-ready")
+            assertEquals(restoredText + appendedText, store.contentFile(documentId).readText())
+            assertTrue(server.requestPaths.any { it.endsWith("/${upload.getString("share_id_hex")}") })
+
+            resolver.openInputStream(documentUri)!!.use { stream ->
+                assertEquals(restoredText + appendedText, stream.readBytes().toString(Charsets.UTF_8))
+            }
+        }
+    }
+
+    @Test
+    fun readWriteOpenRestoresMissingLocalContentBeforeEditing() {
+        val identity = JSONObject(
+            NativeBridge.deriveIdentity(
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                ""
+            )
+        )
+        assertTrue(identity.optBoolean("ok"))
+        val privateKeyHex = identity.getString("private_key_hex")
+        GarlandSessionStore(targetContext).savePrivateKeyHex(privateKeyHex)
+
+        val restoredText = "restored through provider"
+        val appendedText = " + rw edit"
+        TestHttpFileServer(restoredText.toByteArray()).use { server ->
+            val requestJson = GarlandConfig.buildPrepareWriteRequestJson(
+                privateKeyHex = privateKeyHex,
+                displayName = "rw-restore-note.txt",
+                mimeType = "text/plain",
+                content = restoredText.toByteArray(),
+                blossomServers = listOf(server.baseUrl),
+                createdAt = System.currentTimeMillis() / 1000,
+            )
+            val response = JSONObject(NativeBridge.prepareSingleBlockWrite(requestJson))
+            assertTrue(response.optBoolean("ok"))
+            val plan = response.getJSONObject("plan")
+            val documentId = plan.getString("document_id")
+            val upload = plan.getJSONArray("uploads").getJSONObject(0)
+            val encryptedShare = Base64.getDecoder().decode(upload.getString("body_b64"))
+
+            server.enqueue(encryptedShare)
+            store.upsertPreparedDocument(
+                documentId = documentId,
+                displayName = "rw-restore-note.txt",
+                mimeType = "text/plain",
+                content = ByteArray(0),
+                uploadPlanJson = response.toString(),
+            )
+
+            val documentUri = documentUri(documentId)
+            resolver.openFileDescriptor(documentUri, "rw")!!.use { descriptor ->
+                val restoredFromProvider = ParcelFileDescriptor.AutoCloseInputStream(
+                    ParcelFileDescriptor.dup(descriptor.fileDescriptor)
+                ).use { stream ->
+                    stream.readBytes().toString(Charsets.UTF_8)
+                }
+                assertEquals(restoredText, restoredFromProvider)
+
+                ParcelFileDescriptor.AutoCloseOutputStream(
+                    ParcelFileDescriptor.dup(descriptor.fileDescriptor)
+                ).use { stream ->
+                    stream.channel.position(restoredText.toByteArray().size.toLong())
+                    stream.write(appendedText.toByteArray())
+                    stream.flush()
+                }
+            }
+
+            waitForStatus(documentId, "upload-plan-ready")
+            assertEquals(restoredText + appendedText, store.contentFile(documentId).readText())
+            assertTrue(server.requestPaths.any { it.endsWith("/${upload.getString("share_id_hex")}") })
+
+            resolver.openInputStream(documentUri)!!.use { stream ->
+                assertEquals(restoredText + appendedText, stream.readBytes().toString(Charsets.UTF_8))
+            }
         }
     }
 

@@ -3,6 +3,8 @@ package com.andotherstuff.garland
 object DocumentDiagnosticsFormatter {
     private const val MALFORMED_DIAGNOSTICS_LABEL = "Stored diagnostics: Unreadable sync details"
     private const val MALFORMED_UPLOAD_PLAN_LABEL = "Stored upload plan: Unreadable plan metadata"
+    private val relayProgressPattern = Regex("Published to \\d+/(\\d+) relays")
+    private val urlSchemePattern = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://")
 
     data class DetailSections(
         val overview: String,
@@ -33,14 +35,14 @@ object DocumentDiagnosticsFormatter {
             diagnostics += if (uploadFailures == 0) {
                 "uploads ok"
             } else {
-                "upload fail $uploadFailures/${details!!.uploads.size}"
+                listFailureSummary("upload", uploadFailures, details!!.uploads)
             }
         }
         if (!details?.relays.isNullOrEmpty()) {
             diagnostics += if (relayFailures == 0) {
                 "relays ok"
             } else {
-                "relay fail $relayFailures/${details!!.relays.size}"
+                listFailureSummary("relay", relayFailures, details!!.relays)
             }
         }
         if (decodeResult.malformed) {
@@ -50,10 +52,12 @@ object DocumentDiagnosticsFormatter {
             diagnostics += "plan unreadable"
         }
         if (details == null) {
-            record.lastSyncMessage
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { diagnostics += it.replace("\n", " ").take(72) }
+            legacyListSummary(record.lastSyncMessage)
+                ?.let { diagnostics += it }
+                ?: record.lastSyncMessage
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?.let { diagnostics += it.replace("\n", " ").take(72) }
         }
         return listOf(header, diagnostics.joinToString(" - ").takeIf { it.isNotBlank() })
             .filterNotNull()
@@ -95,7 +99,7 @@ object DocumentDiagnosticsFormatter {
         val legacyUploadFailure = extractLegacyUploadFailure(record.lastSyncMessage)
         val uploads = when {
             !uploadDiagnostics.isNullOrEmpty() -> uploadDiagnostics.joinToString("\n", transform = ::formatEndpointDiagnostic)
-            legacyUploadFailure != null -> "- ${normalizeFailureEntry(legacyUploadFailure)}"
+            legacyUploadFailure != null -> formatLegacyUploadFailureLine(legacyUploadFailure)
             !summary?.servers.isNullOrEmpty() -> summary.servers.joinToString("\n", transform = ::normalizeServer)
             else -> null
         }
@@ -156,11 +160,11 @@ object DocumentDiagnosticsFormatter {
     }
 
     private fun normalizeServer(server: String): String {
-        return "- " + server.removePrefix("https://").removePrefix("wss://")
+        return "- ${normalizeEndpointTarget(server)}"
     }
 
     private fun formatEndpointDiagnostic(diagnostic: DocumentEndpointDiagnostic): String {
-        val target = diagnostic.target.removePrefix("https://").removePrefix("wss://")
+        val target = normalizeEndpointTarget(diagnostic.target)
         return "- $target [${formatEndpointStatus(diagnostic.status)}] ${diagnostic.detail}"
     }
 
@@ -176,6 +180,40 @@ object DocumentDiagnosticsFormatter {
             "$label ($okCount/${diagnostics.size} ok)"
         } else {
             "$label ($failureCount/${diagnostics.size} failed)"
+        }
+    }
+
+    private fun listFailureSummary(prefix: String, failureCount: Int, diagnostics: List<DocumentEndpointDiagnostic>): String {
+        val firstFailure = diagnostics.firstOrNull { it.status != "ok" }
+        if (firstFailure == null) {
+            return "$prefix fail $failureCount/${diagnostics.size}"
+        }
+
+        val target = normalizeFailureEntry(firstFailure.target)
+        val detail = summarizeFailureDetail(firstFailure.detail, formatEndpointStatus(firstFailure.status))
+            ?: formatEndpointStatus(firstFailure.status)
+        return "$prefix fail $failureCount/${diagnostics.size} ($target: $detail)"
+    }
+
+    private fun legacyListSummary(message: String?): String? {
+        val relayFailures = extractFailureEntries(message)
+        if (relayFailures.isNotEmpty()) {
+            val firstFailure = summarizeLegacyFailureEntry(relayFailures.first())
+            val totalCount = relayProgressPattern.find(message.orEmpty())?.groupValues?.getOrNull(1)?.toIntOrNull()
+            val failureCounts = totalCount?.let { "${relayFailures.size}/$it" } ?: relayFailures.size.toString()
+            return if (firstFailure.second == null) {
+                "relay fail $failureCounts (${firstFailure.first})"
+            } else {
+                "relay fail $failureCounts (${firstFailure.first}: ${firstFailure.second})"
+            }
+        }
+
+        val uploadFailure = extractLegacyUploadFailure(message) ?: return null
+        val firstFailure = summarizeLegacyUploadFailure(uploadFailure)
+        return if (firstFailure.second == null) {
+            "upload fail 1/1 (${firstFailure.first})"
+        } else {
+            "upload fail 1/1 (${firstFailure.first}: ${firstFailure.second})"
         }
     }
 
@@ -212,8 +250,56 @@ object DocumentDiagnosticsFormatter {
         return trimmed.removePrefix("Upload failed on ")
     }
 
+    private fun summarizeLegacyUploadFailure(entry: String): Pair<String, String?> {
+        val normalized = entry.trim().replace("\n", " ")
+        val withSeparator = " with "
+        val separatorIndex = normalized.indexOf(withSeparator)
+        if (separatorIndex == -1) {
+            return normalizeFailureEntry(normalized) to null
+        }
+
+        val target = normalizeFailureEntry(normalized.substring(0, separatorIndex).trim())
+        val detail = summarizeFailureDetail(normalized.substring(separatorIndex + withSeparator.length), fallback = null)
+        return target to detail
+    }
+
+    private fun formatLegacyUploadFailureLine(entry: String): String {
+        val (target, detail) = summarizeLegacyUploadFailure(entry)
+        return if (detail == null) {
+            "- $target"
+        } else {
+            "- $target ($detail)"
+        }
+    }
+
+    private fun summarizeLegacyFailureEntry(entry: String): Pair<String, String?> {
+        val normalized = entry.trim().replace("\n", " ")
+        val detailStart = normalized.lastIndexOf("(")
+        val detailEnd = normalized.lastIndexOf(")")
+        if (detailStart == -1 || detailEnd <= detailStart) {
+            return normalizeFailureEntry(normalized) to null
+        }
+
+        val target = normalizeFailureEntry(normalized.substring(0, detailStart).trim())
+        val detail = summarizeFailureDetail(normalized.substring(detailStart + 1, detailEnd), fallback = null)
+        return target to detail
+    }
+
     private fun normalizeFailureEntry(entry: String): String {
-        return entry.removePrefix("https://").removePrefix("wss://")
+        return normalizeEndpointTarget(entry)
+    }
+
+    private fun normalizeEndpointTarget(target: String): String {
+        return target.trim().replace(urlSchemePattern, "")
+    }
+
+    private fun summarizeFailureDetail(detail: String, fallback: String?): String? {
+        return detail
+            .replace("\n", " ")
+            .trim()
+            .take(32)
+            .ifBlank { fallback.orEmpty() }
+            .ifBlank { null }
     }
 
     private fun formatEndpointStatus(status: String): String {

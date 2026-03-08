@@ -11,7 +11,6 @@ import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.DocumentsProvider
 import android.net.Uri
-import android.webkit.MimeTypeMap
 import java.io.FileNotFoundException
 
 class GarlandDocumentsProvider : DocumentsProvider() {
@@ -73,7 +72,13 @@ class GarlandDocumentsProvider : DocumentsProvider() {
 
         val file = store.contentFile(documentId)
         val parsedMode = ParcelFileDescriptor.parseMode(mode)
-        val writeMode = mode.contains("w") || mode.contains("a")
+        val appendMode = mode.contains("a")
+        val writeMode = mode.contains("w") || appendMode
+        val mixedReadWriteMode = mode.contains("r") && writeMode && !mode.contains("t")
+
+        if (appendMode || mixedReadWriteMode) {
+            restoreDocumentIfNeeded(documentId)
+        }
 
         if (writeMode) {
             return ParcelFileDescriptor.open(
@@ -98,7 +103,7 @@ class GarlandDocumentsProvider : DocumentsProvider() {
     ): AssetFileDescriptor {
         val record = store.readRecord(documentId)
             ?: throw FileNotFoundException("Document not found: $documentId")
-        if (!supportsThumbnail(record.mimeType)) {
+        if (!ProviderMimePolicy.supportsThumbnail(record.mimeType)) {
             throw FileNotFoundException("Thumbnails are not supported for ${record.mimeType}")
         }
 
@@ -117,7 +122,7 @@ class GarlandDocumentsProvider : DocumentsProvider() {
         }
 
         val resolvedDisplayName = displayName ?: "Untitled"
-        val resolvedMimeType = resolveMimeType(mimeType, resolvedDisplayName)
+        val resolvedMimeType = ProviderMimePolicy.resolveMimeType(mimeType, resolvedDisplayName)
         val record = store.createDocument(
             displayName = resolvedDisplayName,
             mimeType = resolvedMimeType
@@ -156,8 +161,10 @@ class GarlandDocumentsProvider : DocumentsProvider() {
         if (needle.isBlank()) return result
         GarlandProviderContract.trackSearchQuery(context!!.applicationContext, needle)
 
-        store.listDocuments()
-            .filter { ProviderSearchMatcher.matches(it, needle) }
+        ProviderSearchRanking.sortMatches(
+            store.listDocuments().filter { ProviderSearchMatcher.matches(it, needle) },
+            needle,
+        )
             .forEach { includeRecord(result, it) }
         return result
     }
@@ -221,7 +228,7 @@ class GarlandDocumentsProvider : DocumentsProvider() {
     private fun documentFlagsFor(record: LocalDocumentRecord): Int {
         var flags = DocumentsContract.Document.FLAG_SUPPORTS_DELETE or
             DocumentsContract.Document.FLAG_SUPPORTS_WRITE
-        if (supportsThumbnail(record.mimeType)) {
+        if (ProviderMimePolicy.supportsThumbnail(record.mimeType)) {
             flags = flags or DocumentsContract.Document.FLAG_SUPPORTS_THUMBNAIL
         }
         return flags
@@ -265,26 +272,6 @@ class GarlandDocumentsProvider : DocumentsProvider() {
 
     private fun buildSummary(record: LocalDocumentRecord): String {
         return ProviderDocumentSummaryFormatter.build(record)
-    }
-
-    private fun supportsThumbnail(mimeType: String): Boolean = mimeType.startsWith("image/", ignoreCase = true)
-
-    private fun resolveMimeType(mimeType: String?, displayName: String): String {
-        val requestedMimeType = mimeType
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-            ?.lowercase()
-            ?: "application/octet-stream"
-        if (requestedMimeType != "application/octet-stream") {
-            return requestedMimeType
-        }
-
-        val extension = displayName.substringAfterLast('.', missingDelimiterValue = "")
-            .lowercase()
-            .takeIf { it.isNotBlank() }
-            ?: return requestedMimeType
-
-        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: requestedMimeType
     }
 
     private fun requireRootParent(parentDocumentId: String?) {

@@ -9,6 +9,8 @@ class RestoreWorkResultPolicyTest {
     fun treatsMissingRestorePrerequisitesAsPermanentFailures() {
         assertFalse(RestoreWorkResultPolicy.shouldRetry("Load identity before background restore"))
         assertFalse(RestoreWorkResultPolicy.shouldRetry("No upload plan found"))
+        assertFalse(RestoreWorkResultPolicy.shouldRetry("Invalid upload plan"))
+        assertFalse(RestoreWorkResultPolicy.shouldRetry("Invalid recovery response"))
         assertFalse(RestoreWorkResultPolicy.shouldRetry("Upload plan is missing manifest"))
         assertFalse(RestoreWorkResultPolicy.shouldRetry("Manifest has no blocks"))
         assertFalse(RestoreWorkResultPolicy.shouldRetry("Recovery failed"))

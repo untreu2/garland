@@ -4,6 +4,8 @@ internal object RestoreWorkResultPolicy {
     private val permanentFailures = setOf(
         "Load identity before background restore",
         "No upload plan found",
+        "Invalid upload plan",
+        "Invalid recovery response",
         "Upload plan is missing manifest",
         "Manifest has no blocks",
         "Recovery failed",

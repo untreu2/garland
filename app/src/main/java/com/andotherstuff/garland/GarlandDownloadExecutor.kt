@@ -2,6 +2,9 @@ package com.andotherstuff.garland
 
 import android.content.Context
 import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.google.gson.JsonSyntaxException
 import com.google.gson.annotations.SerializedName
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -31,8 +34,14 @@ class GarlandDownloadExecutor(
             ?: return DownloadExecutionResult(false, 0, 0, "No upload plan found").also {
                 store.updateUploadStatus(documentId, "download-failed", it.message)
             }
-        val response = gson.fromJson(raw, DownloadPlanEnvelope::class.java)
-        val manifest = response.plan?.manifest
+        val response = try {
+            gson.fromJson(raw, DownloadPlanEnvelope::class.java)
+        } catch (_: JsonSyntaxException) {
+            return DownloadExecutionResult(false, 0, 0, "Invalid upload plan").also {
+                store.updateUploadStatus(documentId, "download-failed", it.message)
+            }
+        }
+        val manifest = response?.plan?.manifest
             ?: return DownloadExecutionResult(false, 0, 0, "Upload plan is missing manifest").also {
                 store.updateUploadStatus(documentId, "download-failed", it.message)
             }
@@ -62,14 +71,21 @@ class GarlandDownloadExecutor(
                 blockIndex = block.index,
                 encryptedBlock = encryptedBody,
             )
-            val recovery = gson.fromJson(recoverBlock(requestJson), DownloadRecoveryEnvelope::class.java)
+            val recovery = parseRecoveryEnvelope(recoverBlock(requestJson))
+                ?: return DownloadExecutionResult(false, block.servers.size, restoredContent.size, "Invalid recovery response").also {
+                    store.updateUploadStatus(documentId, "download-failed", it.message)
+                }
             if (!recovery.ok) {
                 val message = recovery.error ?: "Recovery failed"
                 store.updateUploadStatus(documentId, "download-failed", message)
                 return DownloadExecutionResult(false, block.servers.size, restoredContent.size, message)
             }
 
-            restoredContent += Base64.getDecoder().decode(recovery.contentBase64 ?: "").toList()
+            val recoveredBytes = decodeRecoveredContent(recovery.contentBase64)
+                ?: return DownloadExecutionResult(false, block.servers.size, restoredContent.size, "Invalid recovery response").also {
+                    store.updateUploadStatus(documentId, "download-failed", it.message)
+                }
+            restoredContent += recoveredBytes.toList()
         }
 
         val content = restoredContent.toByteArray()
@@ -79,6 +95,37 @@ class GarlandDownloadExecutor(
         val message = "Restored ${content.size} bytes from ${blocks.size} Garland block(s)"
         store.updateUploadStatus(documentId, "download-restored", message)
         return DownloadExecutionResult(true, attemptedServers, content.size, message)
+    }
+
+    private fun parseRecoveryEnvelope(rawJson: String): DownloadRecoveryEnvelope? {
+        return try {
+            val jsonObject = JsonParser.parseString(rawJson).asJsonObject
+            val ok = jsonObject.requiredBoolean("ok") ?: return null
+            val contentBase64 = jsonObject.optionalStringOrNull("content_b64")
+            if (!contentBase64.isValid) return null
+            val error = jsonObject.optionalStringOrNull("error")
+            if (!error.isValid) return null
+            DownloadRecoveryEnvelope(ok = ok, contentBase64 = contentBase64.value, error = error.value)
+        } catch (_: IllegalStateException) {
+            null
+        } catch (_: JsonSyntaxException) {
+            null
+        }
+    }
+
+    private fun JsonObject.requiredBoolean(fieldName: String): Boolean? {
+        val field = get(fieldName) ?: return null
+        if (!field.isJsonPrimitive || !field.asJsonPrimitive.isBoolean) return null
+        return field.asBoolean
+    }
+
+    private fun JsonObject.optionalStringOrNull(fieldName: String): ParsedOptionalString {
+        val field = get(fieldName) ?: return ParsedOptionalString(isValid = true, value = null)
+        if (field.isJsonNull) return ParsedOptionalString(isValid = true, value = null)
+        if (!field.isJsonPrimitive || !field.asJsonPrimitive.isString) {
+            return ParsedOptionalString(isValid = false, value = null)
+        }
+        return ParsedOptionalString(isValid = true, value = field.asString)
     }
 
     private fun fetchEncryptedBody(block: ManifestBlockEnvelope): FetchEncryptedBodyResult {
@@ -114,11 +161,25 @@ class GarlandDownloadExecutor(
         val detail = error.message?.trim().orEmpty()
         return if (detail.isBlank()) "Invalid Blossom server URL" else "Invalid Blossom server URL: $detail"
     }
+
+    private fun decodeRecoveredContent(contentBase64: String?): ByteArray? {
+        val encoded = contentBase64 ?: return null
+        return try {
+            Base64.getDecoder().decode(encoded)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
 }
 
 private data class FetchEncryptedBodyResult(
     val body: ByteArray?,
     val error: String? = null,
+)
+
+private data class ParsedOptionalString(
+    val isValid: Boolean,
+    val value: String?,
 )
 
 private data class DownloadPlanEnvelope(

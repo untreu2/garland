@@ -73,16 +73,35 @@ class RestoreDocumentWorkerTest {
         val result = worker.doWork()
 
         assertTrue(result is ListenableWorker.Result.Retry)
-        assertEquals("download-failed", store.readRecord(document.documentId)?.uploadStatus)
+        assertEquals("restore-queued", store.readRecord(document.documentId)?.uploadStatus)
         assertEquals(
-            "Unable to fetch share from configured servers",
+            "Retrying background restore: Unable to fetch share from configured servers",
             store.readRecord(document.documentId)?.lastSyncMessage,
         )
     }
 
-    private fun buildWorker(documentId: String): RestoreDocumentWorker {
+    @Test
+    fun failsPermanentlyWhenUploadPlanJsonIsMalformed() = runBlocking {
+        session.savePrivateKeyHex("deadbeef")
+        val document = store.createDocument("restore-note.txt", "text/plain")
+        store.saveUploadPlan(document.documentId, "{not valid json")
+        val worker = buildWorker(document.documentId)
+
+        val result = worker.doWork()
+
+        assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals("restore-failed", store.readRecord(document.documentId)?.uploadStatus)
+        assertEquals("Invalid upload plan", store.readRecord(document.documentId)?.lastSyncMessage)
+    }
+
+    private fun buildWorker(
+        documentId: String,
+        privateKeyHex: String? = null,
+    ): RestoreDocumentWorker {
+        val payload = mutableMapOf<String, Any>(RestoreDocumentWorker.KEY_DOCUMENT_ID to documentId)
+        privateKeyHex?.let { payload[RestoreDocumentWorker.KEY_PRIVATE_KEY_HEX] = it }
         return TestListenableWorkerBuilder<RestoreDocumentWorker>(targetContext)
-            .setInputData(workDataOf(RestoreDocumentWorker.KEY_DOCUMENT_ID to documentId))
+            .setInputData(workDataOf(*payload.map { (key, value) -> key to value }.toTypedArray()))
             .build()
     }
 
