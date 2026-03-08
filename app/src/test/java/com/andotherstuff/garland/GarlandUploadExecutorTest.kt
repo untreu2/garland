@@ -1001,6 +1001,79 @@ class GarlandUploadExecutorTest {
     }
 
     @Test
+    fun resumesUploadWithoutReuploadingSharesThatAlreadyHaveRetrievalUrls() {
+        val tempDir = Files.createTempDirectory("garland-upload-resume-test").toFile()
+        val store = LocalDocumentStoreImpl(tempDir)
+        val harness = FakeGarlandNetworkHarness()
+
+        try {
+            harness.enqueueUploadSuccess()
+            repeat(3) { harness.enqueueUploadFailure(503) }
+            harness.enqueueUploadSuccess()
+            harness.enqueueUploadDescriptor(HELLO_SHARE_ID, "/blob/$HELLO_SHARE_ID")
+            harness.enqueueUploadDescriptor(WORLD_SHARE_ID, "/blob/$WORLD_SHARE_ID")
+            harness.acceptRelayEvents()
+            val document = store.createDocument("note.txt", "text/plain")
+            store.saveUploadPlan(
+                document.documentId,
+                """
+                {
+                  "ok": true,
+                  "plan": {
+                    "uploads": [
+                      {"server_url":"${harness.blossomBaseUrl()}","share_id_hex":"$HELLO_SHARE_ID","body_b64":"aGVsbG8="},
+                      {"server_url":"${harness.blossomBaseUrl()}","share_id_hex":"$WORLD_SHARE_ID","body_b64":"d29ybGQ="}
+                    ],
+                    "commit_event": {
+                      "id_hex":"event123",
+                      "pubkey_hex":"pubkey123",
+                      "created_at":1701907200,
+                      "kind":1097,
+                      "tags":[],
+                      "content":"manifest",
+                      "sig_hex":"sig123"
+                    }
+                  },
+                  "error": null
+                }
+                """.trimIndent(),
+            )
+
+            val client = OkHttpClient()
+            try {
+                val executor = GarlandUploadExecutor(
+                    store = store,
+                    client = client,
+                    relayPublisher = NostrRelayPublisher(client = client, ackTimeoutMillis = 250),
+                    retrySleep = {},
+                )
+
+                val firstResult = executor.executeDocumentUpload(document.documentId, listOf(harness.relayWebSocketUrl()))
+
+                assertFalse(firstResult.success)
+                assertEquals(1, firstResult.uploadedShares)
+                assertTrue(store.readUploadPlan(document.documentId)?.contains("\"retrieval_url\":\"${harness.blossomBaseUrl()}/blob/$HELLO_SHARE_ID\"") == true)
+                assertEquals(listOf(HELLO_SHARE_ID, WORLD_SHARE_ID, WORLD_SHARE_ID, WORLD_SHARE_ID), harness.uploadedShareIds())
+
+                val secondResult = executor.executeDocumentUpload(document.documentId, listOf(harness.relayWebSocketUrl()))
+
+                assertTrue(secondResult.success)
+                assertEquals(2, secondResult.uploadedShares)
+                assertEquals(listOf(HELLO_SHARE_ID, WORLD_SHARE_ID, WORLD_SHARE_ID, WORLD_SHARE_ID, WORLD_SHARE_ID), harness.uploadedShareIds())
+                val diagnostics = DocumentSyncDiagnosticsCodec.decode(store.readRecord(document.documentId)?.lastSyncDetailsJson)
+                assertTrue(diagnostics?.uploads?.any { it.detail == "Reused uploaded share $HELLO_SHARE_ID" } == true)
+                assertEquals("relay-published", store.readRecord(document.documentId)?.uploadStatus)
+            } finally {
+                client.dispatcher.cancelAll()
+                client.dispatcher.executorService.shutdown()
+                client.connectionPool.evictAll()
+            }
+        } finally {
+            harness.close()
+        }
+    }
+
+    @Test
     fun usesManifestMimeTypeForUploadRequest() {
         val tempDir = Files.createTempDirectory("garland-upload-content-type-test").toFile()
         val store = LocalDocumentStoreImpl(tempDir)

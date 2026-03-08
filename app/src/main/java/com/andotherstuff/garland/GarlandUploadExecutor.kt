@@ -132,12 +132,23 @@ open class GarlandUploadExecutor(
             prepared.request!!
         }
         val uploadDiagnostics = mutableListOf<DocumentEndpointDiagnostic>()
-        val resolvedUploadTargets = mutableListOf<ResolvedUploadTarget>()
         var uploadedShares = 0
+        var planJson = raw
         preparedUploads.groupBy { it.upload.shareIdHex }.values.forEach { shareUploads ->
             var shareUploaded = false
             var shareFailure: UploadAttemptResult? = null
             shareUploads.forEach { preparedUpload ->
+                val persistedTarget = resolvePersistedUploadTarget(preparedUpload.upload)
+                if (persistedTarget != null) {
+                    shareUploaded = true
+                    uploadedShares += 1
+                    uploadDiagnostics += DocumentEndpointDiagnostic(
+                        preparedUpload.upload.serverUrl,
+                        "ok",
+                        "Reused uploaded share ${preparedUpload.upload.shareIdHex}",
+                    )
+                    return@forEach
+                }
                 val attemptResult = executeUploadWithRetry(preparedUpload, attemptedAuth = privateKeyHex != null)
                 if (attemptResult.failureMessage != null) {
                     uploadDiagnostics += attemptResult.failureDiagnostic!!
@@ -145,7 +156,9 @@ open class GarlandUploadExecutor(
                 } else {
                     shareUploaded = true
                     attemptResult.successDiagnostic?.let(uploadDiagnostics::add)
-                    attemptResult.resolvedTarget?.let { resolvedUploadTargets += it }
+                    attemptResult.resolvedTarget?.let {
+                        planJson = persistResolvedUploadTargets(documentId, planJson, listOf(it))
+                    }
                     uploadedShares += 1
                 }
             }
@@ -174,7 +187,6 @@ open class GarlandUploadExecutor(
                 )
             }
         }
-        persistResolvedUploadTargets(documentId, raw, resolvedUploadTargets)
 
         val commitEvent = response.plan.commitEvent
             ?: return UploadExecutionResult(
@@ -434,14 +446,22 @@ open class GarlandUploadExecutor(
         return ResolvedUploadTarget(upload.serverUrl, upload.shareIdHex, retrievalUrl)
     }
 
-    private fun persistResolvedUploadTargets(documentId: String, rawPlanJson: String, resolvedTargets: List<ResolvedUploadTarget>) {
-        if (resolvedTargets.isEmpty()) return
+    private fun resolvePersistedUploadTarget(upload: UploadBody): ResolvedUploadTarget? {
+        val retrievalUrl = upload.retrievalUrl?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        runCatching { Request.Builder().url(retrievalUrl).build() }
+            .getOrElse { return null }
+        if (!isSameOrigin(upload.serverUrl, retrievalUrl)) return null
+        return ResolvedUploadTarget(upload.serverUrl, upload.shareIdHex, retrievalUrl)
+    }
+
+    private fun persistResolvedUploadTargets(documentId: String, rawPlanJson: String, resolvedTargets: List<ResolvedUploadTarget>): String {
+        if (resolvedTargets.isEmpty()) return rawPlanJson
         val targetMap = resolvedTargets.associateBy { it.serverUrl to it.shareIdHex }
         val root = runCatching { JsonParser.parseString(rawPlanJson) }.getOrNull()
             ?.takeIf { it.isJsonObject }
             ?.asJsonObject
-            ?: return
-        val uploads = root.getAsJsonObject("plan")?.getAsJsonArray("uploads") ?: return
+            ?: return rawPlanJson
+        val uploads = root.getAsJsonObject("plan")?.getAsJsonArray("uploads") ?: return rawPlanJson
         var mutated = false
         uploads.forEach { element ->
             val uploadObject = element.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
@@ -453,9 +473,8 @@ open class GarlandUploadExecutor(
                 mutated = true
             }
         }
-        if (mutated) {
-            store.saveUploadPlan(documentId, gson.toJson(root))
-        }
+        if (!mutated) return rawPlanJson
+        return gson.toJson(root).also { store.saveUploadPlan(documentId, it) }
     }
 
     private fun uploadFailureMessage(
