@@ -54,6 +54,9 @@ class DocumentDiagnosticsScreenPresenterTest {
 
         assertEquals("doc-selected", state.selectedDocumentId)
         assertEquals("selected.txt", state.selectedLabel)
+        assertEquals("error", state.headlineTone)
+        assertEquals("Relay publish needs attention", state.headline)
+        assertTrue(state.summary.contains("relay.one"))
         assertTrue(state.overview.contains("Status: Relay published partial"))
         assertEquals("Uploads (1/1 ok)", state.uploadsLabel)
         assertTrue(state.uploads?.contains("blossom.one [OK] Uploaded share a1") == true)
@@ -64,7 +67,7 @@ class DocumentDiagnosticsScreenPresenterTest {
         assertTrue(state.exportText.contains("Diagnostics report for selected.txt"))
         assertEquals("Document ID: doc-selected", state.documentIdLabel)
         assertEquals("Troubleshooting", state.troubleshootingLabel)
-        assertTrue(state.troubleshootingItems.contains("Retry relay publish after confirming relay connectivity and auth."))
+        assertTrue(state.troubleshootingItems.contains("Check write access, auth, and connectivity for relay.one, then retry relay publish."))
         assertEquals(listOf("selected.txt", "other.txt"), state.documentOptions.map { it.label })
     }
 
@@ -91,10 +94,47 @@ class DocumentDiagnosticsScreenPresenterTest {
             readUploadPlan = { sampleUploadPlanJson(documentId = it) },
         )
 
+        assertEquals("warning", state.headlineTone)
+        assertEquals("Background work is still running", state.headline)
+        assertTrue(state.summary.contains("upload failure"))
         assertEquals("Troubleshooting", state.troubleshootingLabel)
-        assertTrue(state.troubleshootingItems.contains("Background work is still active. Refresh after the current worker finishes."))
-        assertTrue(state.troubleshootingItems.contains("Retry upload after checking Blossom server reachability and payload health."))
+        assertTrue(state.troubleshootingItems.contains("Wait for the active worker to finish, then refresh diagnostics before retrying anything."))
+        assertTrue(state.troubleshootingItems.contains("If the retry still fails, check Blossom reachability for blossom.one and retry upload."))
         assertFalse(state.troubleshootingItems.isEmpty())
+    }
+
+    @Test
+    fun explainsPlanFailuresInPlainLanguage() {
+        val diagnosticsJson = DocumentSyncDiagnosticsCodec.encode(
+            DocumentSyncDiagnostics(
+                plan = listOf(
+                    DocumentPlanDiagnostic(
+                        field = "plan.uploads[1].share_id_hex",
+                        status = "invalid",
+                        detail = "Upload plan entry 1 has invalid share ID hex",
+                    )
+                )
+            )
+        )
+        val selected = record(
+            documentId = "doc-plan",
+            displayName = "plan.txt",
+            updatedAt = 25,
+            uploadStatus = "upload-plan-failed",
+            lastSyncMessage = "Upload plan validation failed",
+            lastSyncDetailsJson = diagnosticsJson,
+        )
+
+        val state = DocumentDiagnosticsScreenPresenter.build(
+            records = listOf(selected),
+            selectedDocumentId = "doc-plan",
+            readUploadPlan = { sampleUploadPlanJson(documentId = it) },
+        )
+
+        assertEquals("error", state.headlineTone)
+        assertEquals("Upload plan needs to be rebuilt", state.headline)
+        assertTrue(state.summary.contains("uploads[1].share_id_hex"))
+        assertTrue(state.troubleshootingItems.contains("Prepare the document again so Garland can rebuild a clean upload plan."))
     }
 
     @Test
@@ -108,6 +148,8 @@ class DocumentDiagnosticsScreenPresenterTest {
         assertEquals(null, state.selectedDocumentId)
         assertEquals("Diagnostics", state.title)
         assertEquals("No local Garland documents yet.", state.selectedLabel)
+        assertEquals("neutral", state.headlineTone)
+        assertEquals("No local documents yet", state.headline)
         assertEquals("Select a document to inspect diagnostics.", state.overview)
         assertEquals(null, state.historyLabel)
         assertEquals("No local Garland documents yet.", state.exportText)
