@@ -7,6 +7,7 @@
     <string name="identity_loaded">Identity loaded\n%s</string>
     <string name="identity_error">Import failed: %s</string>
     <string name="active_document_none">No prepared document loaded yet.</string>
+    <string name="current_document_label">Current document</string>
     <string name="active_document_loaded">Active document: %1$s (%2$s)</string>
     <string name="active_document_details_none">No Garland plan details yet.</string>
     <string name="active_document_details">Doc %1$s
@@ -26,6 +27,9 @@ sha256 %6$s</string>
     <string name="diagnostics_documents_label">Document diagnostics</string>
     <string name="diagnostics_history_label">Recent history</string>
     <string name="diagnostics_troubleshooting_label">Troubleshooting</string>
+    <string name="troubleshooting_actions_label">Troubleshooting actions</string>
+    <string name="identity_section_label">Identity</string>
+    <string name="network_section_label">Network defaults</string>
     <string name="local_documents_label">Local Garland documents</string>
     <string name="refresh_documents_button">Refresh</string>
     <string name="sync_documents_button">Sync pending</string>

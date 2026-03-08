@@ -1,0 +1,35 @@
+<resources>
+    <style name="Widget.Garland.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">@color/garland_surface</item>
+        <item name="strokeColor">@color/garland_outline</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="cardCornerRadius">24dp</item>
+        <item name="cardElevation">0dp</item>
+    </style>
+
+    <style name="Widget.Garland.ActionButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">@color/garland_outline</item>
+        <item name="android:textColor">@color/garland_ink</item>
+        <item name="backgroundTint">@color/garland_surface_alt</item>
+    </style>
+
+    <style name="Widget.Garland.PrimaryButton" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/garland_leaf</item>
+        <item name="android:textColor">@color/garland_bg</item>
+    </style>
+
+    <style name="TextAppearance.Garland.SectionEyebrow" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textAllCaps">true</item>
+        <item name="android:textColor">@color/garland_gold</item>
+        <item name="android:letterSpacing">0.08</item>
+    </style>
+
+    <style name="TextAppearance.Garland.SectionTitle" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/garland_ink</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.Garland.BodyMuted" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/garland_muted</item>
+    </style>
+</resources>

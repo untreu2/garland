@@ -1,11 +1,13 @@
 package com.andotherstuff.garland
 
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.andotherstuff.garland.databinding.ActivityMainBinding
 import com.google.android.material.button.MaterialButton
 import org.json.JSONObject
@@ -309,6 +311,7 @@ class MainActivity : AppCompatActivity() {
         if (records.isEmpty()) {
             val emptyView = TextView(this).apply {
                 text = getString(R.string.document_list_empty)
+                setTextColor(ContextCompat.getColor(context, R.color.garland_muted))
             }
             binding.documentListContainer.addView(emptyView)
             return
@@ -331,9 +334,24 @@ class MainActivity : AppCompatActivity() {
                     isSelected = record.documentId == selectedDocumentId,
                     planMalformed = planDecode.malformed,
                 )
+                styleDocumentButton(this, record.documentId == selectedDocumentId)
                 setOnClickListener { selectDocument(record, true) }
             }
             binding.documentListContainer.addView(button)
+        }
+    }
+
+    private fun styleDocumentButton(button: MaterialButton, isSelected: Boolean) {
+        val backgroundColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_surface_alt else R.color.garland_surface)
+        val strokeColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_leaf else R.color.garland_outline)
+        val textColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_ink else R.color.garland_muted)
+        button.backgroundTintList = ColorStateList.valueOf(backgroundColor)
+        button.strokeColor = ColorStateList.valueOf(strokeColor)
+        button.setTextColor(textColor)
+        button.strokeWidth = if (isSelected) {
+            (2 * resources.displayMetrics.density).toInt()
+        } else {
+            resources.displayMetrics.density.toInt().coerceAtLeast(1)
         }
     }
 }

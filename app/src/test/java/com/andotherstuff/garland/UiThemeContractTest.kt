@@ -23,6 +23,14 @@ class UiThemeContractTest {
         assertFalse(diagnosticsLayout.contains("@android:color/white"))
     }
 
+    @Test
+    fun mainScreenUsesSectionCardsAndTroubleshootingLabel() {
+        val mainLayout = projectFile("app", "src", "main", "res", "layout", "activity_main.xml")
+
+        assertTrue(mainLayout.contains("com.google.android.material.card.MaterialCardView"))
+        assertTrue(mainLayout.contains("@string/troubleshooting_actions_label"))
+    }
+
     private fun projectFile(vararg segments: String): String {
         val cwd = Path.of(System.getProperty("user.dir"))
         val repoRoot = if (cwd.resolve("app").toFile().exists()) cwd else cwd.parent
