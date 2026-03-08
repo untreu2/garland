@@ -125,6 +125,48 @@ class RestoreDocumentWorkerTest {
     }
 
     @Test
+    fun retriesAgainstFakeHarnessWithoutPhysicalDevice() = runBlocking {
+        session.savePrivateKeyHex("deadbeef")
+        val document = store.createDocument("restore-note.txt", "text/plain")
+        val harness = FakeGarlandNetworkHarness()
+
+        try {
+            store.saveUploadPlan(
+                document.documentId,
+                """
+                {
+                  "plan": {
+                    "manifest": {
+                      "document_id": "${document.documentId}",
+                      "blocks": [
+                        {
+                          "index": 0,
+                          "share_id_hex": "a1",
+                          "servers": ["${harness.blossomBaseUrl()}"]
+                        }
+                      ]
+                    }
+                  }
+                }
+                """.trimIndent(),
+            )
+            val worker = buildWorker(document.documentId)
+
+            val result = worker.doWork()
+
+            assertTrue(result is ListenableWorker.Result.Retry)
+            assertEquals("restore-queued", store.readRecord(document.documentId)?.uploadStatus)
+            assertEquals(
+                "Retrying background restore: Unable to fetch share from configured servers",
+                store.readRecord(document.documentId)?.lastSyncMessage,
+            )
+            assertEquals(listOf("/a1", "/upload/a1"), harness.downloadRequestPaths())
+        } finally {
+            harness.close()
+        }
+    }
+
+    @Test
     fun failsPermanentlyWhenUploadPlanJsonIsMalformed() = runBlocking {
         session.savePrivateKeyHex("deadbeef")
         val document = store.createDocument("restore-note.txt", "text/plain")

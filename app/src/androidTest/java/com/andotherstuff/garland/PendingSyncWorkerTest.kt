@@ -120,6 +120,36 @@ class PendingSyncWorkerTest {
     }
 
     @Test
+    fun syncsPreparedDocumentThroughFakeHarnessWithoutPublicEndpoints() = runBlocking {
+        val harness = FakeGarlandNetworkHarness()
+
+        try {
+            harness.enqueueUploadSuccess(times = 1)
+            harness.acceptRelayEvents()
+            val document = store.upsertPreparedDocument(
+                documentId = "pending-sync-fake-harness",
+                displayName = "sync-note.txt",
+                mimeType = "text/plain",
+                content = "hello".toByteArray(),
+                uploadPlanJson = uploadPlan(serverUrl = harness.blossomBaseUrl()),
+            )
+            val worker = buildWorker(
+                documentId = document.documentId,
+                relayUrls = listOf(harness.relayWebSocketUrl()),
+            )
+
+            val result = worker.doWork()
+
+            assertTrue(result is ListenableWorker.Result.Success)
+            assertEquals("relay-published", store.readRecord(document.documentId)?.uploadStatus)
+            assertEquals(listOf("a1"), harness.uploadedShareIds())
+            assertEquals(listOf("event123"), harness.receivedRelayEventIds())
+        } finally {
+            harness.close()
+        }
+    }
+
+    @Test
     fun reloadsLatestSessionRelaysWhenInputPayloadIsEmpty() = runBlocking {
         val server = MockWebServer()
         server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
@@ -151,12 +181,11 @@ class PendingSyncWorkerTest {
         }
     }
 
-    private fun buildWorker(documentId: String? = null): PendingSyncWorker {
-        val inputData = if (documentId == null) {
-            workDataOf()
-        } else {
-            workDataOf(PendingSyncWorker.KEY_DOCUMENT_ID to documentId)
-        }
+    private fun buildWorker(documentId: String? = null, relayUrls: List<String>? = null): PendingSyncWorker {
+        val payload = mutableMapOf<String, Any>()
+        documentId?.let { payload[PendingSyncWorker.KEY_DOCUMENT_ID] = it }
+        relayUrls?.let { payload[PendingSyncWorker.KEY_RELAYS] = it.toTypedArray() }
+        val inputData = if (payload.isEmpty()) workDataOf() else workDataOf(*payload.map { (key, value) -> key to value }.toTypedArray())
         return TestListenableWorkerBuilder<PendingSyncWorker>(targetContext)
             .setInputData(inputData)
             .build()
