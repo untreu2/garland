@@ -12,8 +12,7 @@
         android:padding="20dp">
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/diagnosticsHeroCard"
-            style="@style/Widget.Garland.HeroCard"
+            style="@style/Widget.Garland.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
@@ -21,21 +20,26 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:padding="20dp">
 
                 <TextView
-                    android:id="@+id/diagnosticsHeadlineToneText"
-                    style="@style/Widget.Garland.StatusChip.Info"
+                    android:id="@+id/diagnosticsStatusChip"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Info"
-                    android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow" />
+                    android:background="@drawable/bg_status_chip"
+                    android:paddingLeft="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="6dp"
+                    android:text="@string/diagnostics_status_placeholder"
+                    android:textAppearance="@style/TextAppearance.Garland.StatusChip" />
 
                 <TextView
                     android:id="@+id/diagnosticsHeadlineText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="14dp"
+                    android:text="@string/diagnostics_headline_placeholder"
                     android:textAppearance="@style/TextAppearance.Garland.HeroTitle" />
 
                 <TextView
@@ -43,7 +47,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:textAppearance="@style/TextAppearance.Garland.HeroBody" />
+                    android:text="@string/diagnostics_summary_placeholder"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted" />
 
                 <TextView
                     android:id="@+id/selectedDocumentText"
@@ -58,12 +63,12 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:textAppearance="@style/TextAppearance.Garland.DetailMono" />
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="18dp"
+                    android:layout_marginTop="16dp"
                     android:orientation="horizontal">
 
                     <com.google.android.material.button.MaterialButton
@@ -96,7 +101,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.Garland.PanelCard"
+            style="@style/Widget.Garland.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp">
@@ -108,9 +113,37 @@
                 android:padding="20dp">
 
                 <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/diagnostics_next_steps_label"
+                    android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow" />
+
+                <TextView
+                    android:id="@+id/diagnosticsNextStepsText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/diagnostics_signal_label"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/diagnostics_next_steps_placeholder"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/Widget.Garland.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/active_document_diagnostics_label"
                     android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow" />
 
                 <TextView
@@ -124,7 +157,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.Garland.PanelCard"
+            style="@style/Widget.Garland.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp">
@@ -150,25 +183,12 @@
                     android:layout_marginTop="10dp"
                     android:textAppearance="@style/TextAppearance.Garland.BodyMuted"
                     android:visibility="gone" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.Garland.PanelCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
 
                 <TextView
                     android:id="@+id/diagnosticsRelaysLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
                     android:text="@string/active_document_relays_label"
                     android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow"
                     android:visibility="gone" />
@@ -180,55 +200,12 @@
                     android:layout_marginTop="10dp"
                     android:textAppearance="@style/TextAppearance.Garland.BodyMuted"
                     android:visibility="gone" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.Garland.PanelCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
-
-                <TextView
-                    android:id="@+id/diagnosticsTroubleshootingLabel"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/diagnostics_troubleshooting_label"
-                    android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/diagnosticsTroubleshootingText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.Garland.PanelCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
 
                 <TextView
                     android:id="@+id/diagnosticsHistoryLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
                     android:text="@string/diagnostics_history_label"
                     android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow"
                     android:visibility="gone" />
@@ -240,11 +217,44 @@
                     android:layout_marginTop="10dp"
                     android:textAppearance="@style/TextAppearance.Garland.BodyMuted"
                     android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/diagnosticsTroubleshootingLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/diagnostics_troubleshooting_label"
+                    android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/diagnosticsTroubleshootingSummaryText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyStrong"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/diagnosticsTroubleshootingText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/diagnosticsEvidenceHintText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.Garland.BodyMuted"
+                    android:visibility="gone" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
-            style="@style/Widget.Garland.PanelCard"
+            style="@style/Widget.Garland.Card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
@@ -257,7 +267,7 @@
                 android:padding="20dp">
 
                 <TextView
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/diagnostics_documents_label"
                     android:textAppearance="@style/TextAppearance.Garland.SectionEyebrow" />

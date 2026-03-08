@@ -6,11 +6,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
-import android.widget.Toast
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.andotherstuff.garland.databinding.ActivityDiagnosticsBinding
@@ -47,11 +47,12 @@ class DiagnosticsActivity : AppCompatActivity() {
         )
         selectedDocumentId = state.selectedDocumentId
         title = state.title
-        bindHeadline(state.headlineTone, state.headline, state.summary)
+        bindStatusNarrative(state)
         binding.selectedDocumentText.text = state.selectedLabel
         binding.documentIdText.text = state.documentIdLabel
         binding.documentIdText.visibility = if (state.documentIdLabel.isNullOrBlank()) View.GONE else View.VISIBLE
         binding.diagnosticsOverviewText.text = state.overview
+        binding.diagnosticsNextStepsText.text = state.nextSteps.joinToString("\n") { "- $it" }
         bindDiagnosticSection(binding.diagnosticsUploadsLabel, binding.diagnosticsUploadsText, state.uploadsLabel, state.uploads)
         bindDiagnosticSection(binding.diagnosticsRelaysLabel, binding.diagnosticsRelaysText, state.relaysLabel, state.relays)
         bindDiagnosticSection(binding.diagnosticsHistoryLabel, binding.diagnosticsHistoryText, state.historyLabel, state.history)
@@ -61,25 +62,40 @@ class DiagnosticsActivity : AppCompatActivity() {
             state.troubleshootingLabel,
             state.troubleshootingItems.takeIf { it.isNotEmpty() }?.joinToString("\n") { "- $it" },
         )
+        bindText(binding.diagnosticsTroubleshootingSummaryText, state.troubleshootingSummary)
+        bindText(binding.diagnosticsEvidenceHintText, state.evidenceHint)
         renderDocumentOptions(state.documentOptions)
         binding.copyDiagnosticsButton.isEnabled = state.selectedDocumentId != null
         binding.copyDiagnosticsButton.tag = state.exportText
         binding.copyDocumentIdButton.isEnabled = state.selectedDocumentId != null
     }
 
-    private fun bindHeadline(tone: String, headline: String, summary: String) {
-        val (label, fillColor, textColor) = when (tone) {
-            "error" -> Triple("Error", R.color.garland_error, R.color.garland_bg)
-            "warning" -> Triple("Watch", R.color.garland_warning, R.color.garland_bg)
-            "success" -> Triple("Ready", R.color.garland_leaf, R.color.garland_bg)
-            "neutral" -> Triple("Idle", R.color.garland_outline, R.color.garland_ink)
-            else -> Triple("Info", R.color.garland_info, R.color.garland_bg)
+    private fun bindStatusNarrative(state: DocumentDiagnosticsScreenState) {
+        binding.diagnosticsStatusChip.text = state.statusLabel
+        binding.diagnosticsHeadlineText.text = state.statusHeadline
+        binding.diagnosticsSummaryText.text = state.statusSummary
+
+        val backgroundColor = ContextCompat.getColor(this, statusBackgroundColor(state.statusTone))
+        val textColor = ContextCompat.getColor(this, statusTextColor(state.statusTone))
+        binding.diagnosticsStatusChip.backgroundTintList = ColorStateList.valueOf(backgroundColor)
+        binding.diagnosticsStatusChip.setTextColor(textColor)
+    }
+
+    private fun statusBackgroundColor(tone: String): Int {
+        return when (tone) {
+            "success" -> R.color.garland_leaf
+            "warning" -> R.color.garland_gold
+            "danger" -> R.color.garland_error
+            "active" -> R.color.garland_surface_alt
+            else -> R.color.garland_surface_alt
         }
-        binding.diagnosticsHeadlineToneText.text = label
-        binding.diagnosticsHeadlineToneText.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, fillColor))
-        binding.diagnosticsHeadlineToneText.setTextColor(ContextCompat.getColor(this, textColor))
-        binding.diagnosticsHeadlineText.text = headline
-        binding.diagnosticsSummaryText.text = summary
+    }
+
+    private fun statusTextColor(tone: String): Int {
+        return when (tone) {
+            "success", "warning", "danger" -> R.color.garland_bg
+            else -> R.color.garland_ink
+        }
     }
 
     private fun copyDiagnosticsReport() {
@@ -111,15 +127,37 @@ class DiagnosticsActivity : AppCompatActivity() {
                 }
                 isAllCaps = false
                 textAlignment = View.TEXT_ALIGNMENT_VIEW_START
-                text = option.label
-                isEnabled = !option.selected
-                styleDocumentButton(this, option.selected)
+                text = "${option.label}\n${option.supportingText}"
+                setPaddingRelative(
+                    (16 * resources.displayMetrics.density).toInt(),
+                    (14 * resources.displayMetrics.density).toInt(),
+                    (16 * resources.displayMetrics.density).toInt(),
+                    (14 * resources.displayMetrics.density).toInt(),
+                )
+                gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+                styleDocumentOptionButton(this, option.selected)
                 setOnClickListener {
-                    selectedDocumentId = option.documentId
-                    render()
+                    if (!option.selected) {
+                        selectedDocumentId = option.documentId
+                        render()
+                    }
                 }
             }
             binding.diagnosticsDocumentListContainer.addView(button)
+        }
+    }
+
+    private fun styleDocumentOptionButton(button: MaterialButton, isSelected: Boolean) {
+        val backgroundColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_surface_alt else R.color.garland_surface)
+        val strokeColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_leaf else R.color.garland_outline)
+        val textColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_ink else R.color.garland_muted)
+        button.backgroundTintList = ColorStateList.valueOf(backgroundColor)
+        button.strokeColor = ColorStateList.valueOf(strokeColor)
+        button.setTextColor(textColor)
+        button.strokeWidth = if (isSelected) {
+            (2 * resources.displayMetrics.density).toInt()
+        } else {
+            resources.displayMetrics.density.toInt().coerceAtLeast(1)
         }
     }
 
@@ -133,17 +171,11 @@ class DiagnosticsActivity : AppCompatActivity() {
         }
     }
 
-    private fun styleDocumentButton(button: MaterialButton, isSelected: Boolean) {
-        val backgroundColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_surface_high else R.color.garland_surface_alt)
-        val strokeColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_info else R.color.garland_outline)
-        val textColor = ContextCompat.getColor(this, if (isSelected) R.color.garland_ink else R.color.garland_muted)
-        button.backgroundTintList = ColorStateList.valueOf(backgroundColor)
-        button.strokeColor = ColorStateList.valueOf(strokeColor)
-        button.setTextColor(textColor)
-        button.strokeWidth = if (isSelected) {
-            (2 * resources.displayMetrics.density).toInt()
-        } else {
-            resources.displayMetrics.density.toInt().coerceAtLeast(1)
+    private fun bindText(textView: TextView, content: String?) {
+        val visible = !content.isNullOrBlank()
+        textView.visibility = if (visible) View.VISIBLE else View.GONE
+        if (visible) {
+            textView.text = content
         }
     }
 

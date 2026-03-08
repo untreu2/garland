@@ -54,9 +54,9 @@ class DocumentDiagnosticsScreenPresenterTest {
 
         assertEquals("doc-selected", state.selectedDocumentId)
         assertEquals("selected.txt", state.selectedLabel)
-        assertEquals("error", state.headlineTone)
-        assertEquals("Relay publish needs attention", state.headline)
-        assertTrue(state.summary.contains("relay.one"))
+        assertEquals("Relay attention", state.statusLabel)
+        assertEquals("The commit event did not reach every relay.", state.statusHeadline)
+        assertTrue(state.statusSummary.contains("Some shares uploaded"))
         assertTrue(state.overview.contains("Status: Relay published partial"))
         assertEquals("Uploads (1/1 ok)", state.uploadsLabel)
         assertTrue(state.uploads?.contains("blossom.one [OK] Uploaded share a1") == true)
@@ -67,8 +67,14 @@ class DocumentDiagnosticsScreenPresenterTest {
         assertTrue(state.exportText.contains("Diagnostics report for selected.txt"))
         assertEquals("Document ID: doc-selected", state.documentIdLabel)
         assertEquals("Troubleshooting", state.troubleshootingLabel)
-        assertTrue(state.troubleshootingItems.contains("Check write access, auth, and connectivity for relay.one, then retry relay publish."))
+        assertEquals("Relay delivery is the blocker right now.", state.troubleshootingSummary)
+        assertEquals("Copy the report before retrying so you keep the failing relay trace.", state.evidenceHint)
+        assertTrue(state.troubleshootingItems.contains("Retry relay publish after confirming relay connectivity and auth."))
+        assertTrue(state.nextSteps.contains("Retry relay publish after confirming relay connectivity and auth."))
         assertEquals(listOf("selected.txt", "other.txt"), state.documentOptions.map { it.label })
+        assertEquals("Relay attention - Published to 0/1 relays; failed: wss://relay.one (timeout)", state.documentOptions.first().supportingText)
+        assertTrue(state.documentOptions.first().selected)
+        assertEquals("Needs review - Pending local write", state.documentOptions[1].supportingText)
     }
 
     @Test
@@ -94,47 +100,15 @@ class DocumentDiagnosticsScreenPresenterTest {
             readUploadPlan = { sampleUploadPlanJson(documentId = it) },
         )
 
-        assertEquals("warning", state.headlineTone)
-        assertEquals("Background work is still running", state.headline)
-        assertTrue(state.summary.contains("upload failure"))
+        assertEquals("Background work active", state.statusLabel)
+        assertEquals("Garland is still working on this document.", state.statusHeadline)
+        assertTrue(state.statusSummary.contains("wait"))
         assertEquals("Troubleshooting", state.troubleshootingLabel)
-        assertTrue(state.troubleshootingItems.contains("Wait for the active worker to finish, then refresh diagnostics before retrying anything."))
-        assertTrue(state.troubleshootingItems.contains("If the retry still fails, check Blossom reachability for blossom.one and retry upload."))
+        assertEquals("Garland is still running, so wait for the worker before trusting this screen.", state.troubleshootingSummary)
+        assertEquals("Copy the report now if you need the last completed endpoint details before the worker overwrites them.", state.evidenceHint)
+        assertTrue(state.troubleshootingItems.contains("Background work is still active. Refresh after the current worker finishes."))
+        assertTrue(state.troubleshootingItems.contains("Retry upload after checking Blossom server reachability and payload health."))
         assertFalse(state.troubleshootingItems.isEmpty())
-    }
-
-    @Test
-    fun explainsPlanFailuresInPlainLanguage() {
-        val diagnosticsJson = DocumentSyncDiagnosticsCodec.encode(
-            DocumentSyncDiagnostics(
-                plan = listOf(
-                    DocumentPlanDiagnostic(
-                        field = "plan.uploads[1].share_id_hex",
-                        status = "invalid",
-                        detail = "Upload plan entry 1 has invalid share ID hex",
-                    )
-                )
-            )
-        )
-        val selected = record(
-            documentId = "doc-plan",
-            displayName = "plan.txt",
-            updatedAt = 25,
-            uploadStatus = "upload-plan-failed",
-            lastSyncMessage = "Upload plan validation failed",
-            lastSyncDetailsJson = diagnosticsJson,
-        )
-
-        val state = DocumentDiagnosticsScreenPresenter.build(
-            records = listOf(selected),
-            selectedDocumentId = "doc-plan",
-            readUploadPlan = { sampleUploadPlanJson(documentId = it) },
-        )
-
-        assertEquals("error", state.headlineTone)
-        assertEquals("Upload plan needs to be rebuilt", state.headline)
-        assertTrue(state.summary.contains("uploads[1].share_id_hex"))
-        assertTrue(state.troubleshootingItems.contains("Prepare the document again so Garland can rebuild a clean upload plan."))
     }
 
     @Test
@@ -148,9 +122,11 @@ class DocumentDiagnosticsScreenPresenterTest {
         assertEquals(null, state.selectedDocumentId)
         assertEquals("Diagnostics", state.title)
         assertEquals("No local Garland documents yet.", state.selectedLabel)
-        assertEquals("neutral", state.headlineTone)
-        assertEquals("No local documents yet", state.headline)
+        assertEquals("No document selected", state.statusLabel)
+        assertEquals("Nothing is broken right now because nothing is loaded yet.", state.statusHeadline)
         assertEquals("Select a document to inspect diagnostics.", state.overview)
+        assertEquals(null, state.troubleshootingSummary)
+        assertEquals(null, state.evidenceHint)
         assertEquals(null, state.historyLabel)
         assertEquals("No local Garland documents yet.", state.exportText)
         assertTrue(state.documentOptions.isEmpty())

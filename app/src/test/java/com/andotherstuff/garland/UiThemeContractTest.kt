@@ -29,17 +29,47 @@ class UiThemeContractTest {
 
         assertTrue(mainLayout.contains("com.google.android.material.card.MaterialCardView"))
         assertTrue(mainLayout.contains("@string/troubleshooting_actions_label"))
+        assertTrue(mainLayout.contains("@string/action_group_quick_checks_label"))
+        assertTrue(mainLayout.contains("@string/action_group_document_actions_label"))
+        assertTrue(mainLayout.contains("@string/action_group_danger_zone_label"))
+        assertTrue(mainLayout.contains("@+id/actionSafetyNoteText"))
+        assertTrue(mainLayout.contains("@style/Widget.Garland.DangerButton"))
+        assertTrue(mainLayout.contains("@+id/mainStatusChip"))
+        assertTrue(mainLayout.contains("@+id/mainStatusHeadlineText"))
+        assertTrue(mainLayout.contains("@+id/mainStatusSummaryText"))
+        assertTrue(mainLayout.contains("@+id/mainNextStepsText"))
+    }
+
+    @Test
+    fun appUsesBundledGarlandLogoForLauncherAndHeroImage() {
+        val manifestXml = projectFile("app", "src", "main", "AndroidManifest.xml")
+        val mainLayout = projectFile("app", "src", "main", "res", "layout", "activity_main.xml")
+
+        assertTrue(manifestXml.contains("@drawable/garland_logo"))
+        assertTrue(mainLayout.contains("@drawable/garland_logo"))
+    }
+
+    @Test
+    fun diagnosticsScreenUsesMissionControlStatusAndNextStepsPanels() {
+        val diagnosticsLayout = projectFile("app", "src", "main", "res", "layout", "activity_diagnostics.xml")
+
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsStatusChip"))
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsHeadlineText"))
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsSummaryText"))
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsNextStepsText"))
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsTroubleshootingSummaryText"))
+        assertTrue(diagnosticsLayout.contains("@+id/diagnosticsEvidenceHintText"))
+        assertTrue(diagnosticsLayout.contains("MaterialCardView"))
     }
 
     @Test
     fun diagnosticsScreenUsesMissionControlHeroAndSectionPanels() {
         val diagnosticsLayout = projectFile("app", "src", "main", "res", "layout", "activity_diagnostics.xml")
 
-        assertTrue(diagnosticsLayout.contains("diagnosticsHeroCard"))
-        assertTrue(diagnosticsLayout.contains("diagnosticsHeadlineToneText"))
+        assertTrue(diagnosticsLayout.contains("diagnosticsStatusChip"))
         assertTrue(diagnosticsLayout.contains("diagnosticsHeadlineText"))
         assertTrue(diagnosticsLayout.contains("diagnosticsSummaryText"))
-        assertTrue(diagnosticsLayout.contains("@style/Widget.Garland.PanelCard"))
+        assertTrue(diagnosticsLayout.contains("@style/Widget.Garland.Card"))
     }
 
     @Test
@@ -47,12 +77,12 @@ class UiThemeContractTest {
         val stylesXml = projectFile("app", "src", "main", "res", "values", "styles.xml")
         val colorsXml = projectFile("app", "src", "main", "res", "values", "colors.xml")
 
-        assertTrue(stylesXml.contains("Widget.Garland.HeroCard"))
-        assertTrue(stylesXml.contains("Widget.Garland.StatusChip.Success"))
-        assertTrue(stylesXml.contains("Widget.Garland.StatusChip.Warning"))
-        assertTrue(stylesXml.contains("Widget.Garland.StatusChip.Error"))
-        assertTrue(colorsXml.contains("garland_info"))
-        assertTrue(colorsXml.contains("garland_surface_high"))
+        assertTrue(stylesXml.contains("Widget.Garland.DangerButton"))
+        assertTrue(stylesXml.contains("Widget.Garland.SubtleButton"))
+        assertTrue(stylesXml.contains("TextAppearance.Garland.StatusChip"))
+        assertTrue(colorsXml.contains("garland_surface_soft"))
+        assertTrue(colorsXml.contains("garland_surface_strong"))
+        assertTrue(colorsXml.contains("garland_danger_surface"))
     }
 
     private fun projectFile(vararg segments: String): String {
